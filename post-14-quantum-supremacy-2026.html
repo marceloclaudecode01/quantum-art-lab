@@ -1,0 +1,191 @@
+<!--
+Title: Quantum Supremacy in 2026: Where Are We Really?
+Meta Description: IBM has 156-qubit processors, Origin Quantum has 180 qubits, Google claims supremacy. But what can quantum computers actually DO today? A reality check.
+Labels: quantum-computing, deep-dive
+Permalink: quantum-supremacy-2026-reality-check
+Keywords: quantum supremacy 2026, quantum computing state of the art, ibm quantum 2026
+-->
+
+<!-- Table of Contents -->
+<div style="background:#f8f9fa;border-left:4px solid #0984e3;padding:20px;margin-bottom:30px;border-radius:0 8px 8px 0;">
+<h3 style="margin-top:0;color:#0984e3;">Table of Contents</h3>
+<ol style="margin-bottom:0;">
+<li><a href="#what-is-supremacy">What "Quantum Supremacy" Actually Means</a></li>
+<li><a href="#google-sycamore">Google's Sycamore Claim</a></li>
+<li><a href="#ibm-roadmap">IBM's Roadmap: Eagle to Heron to Starling</a></li>
+<li><a href="#origin-quantum">Origin Quantum's WK_C180: 180 Qubits From China</a></li>
+<li><a href="#what-you-can-run">What You Can Actually Run Today</a></li>
+<li><a href="#our-experience">Our Experience: Running Real Circuits on Both Platforms</a></li>
+<li><a href="#hype-vs-reality">Hype vs Reality</a></li>
+</ol>
+</div>
+
+<p>We've had hands-on access to two of the world's most advanced quantum computers: IBM's <strong>ibm_fez</strong> (156 qubits) and Origin Quantum's <strong>WK_C180</strong> (180 qubits). We used them to generate art for the <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> NFT collection — running real quantum circuits, collecting real measurement data, and turning quantum noise into abstract art.</p>
+
+<p>That experience gave us a perspective on the state of quantum computing that most blog posts and press releases don't provide. This is a reality check.</p>
+
+<h2 id="what-is-supremacy">What "Quantum Supremacy" Actually Means</h2>
+
+<p>Quantum supremacy (or "quantum advantage") is a specific technical claim: a quantum computer has performed a computation that no classical computer can perform in a reasonable time. The key word is <strong>performed</strong> — not "could theoretically perform" but actually did it, with verifiable results.</p>
+
+<p>The term was coined by John Preskill in 2012. It doesn't mean quantum computers are "better" than classical computers at everything. It means there exists at least one task where they're faster. The task doesn't have to be useful — it just has to be hard for classical computers.</p>
+
+<p>This distinction matters enormously. Quantum supremacy has been demonstrated for <em>artificial benchmarks</em>. Nobody has demonstrated quantum advantage for a <em>practical problem</em> that anyone outside a physics lab cares about.</p>
+
+<h2 id="google-sycamore">Google's Sycamore Claim</h2>
+
+<p>In October 2019, Google published a paper in Nature claiming quantum supremacy with their 53-qubit Sycamore processor. The task: sampling from random quantum circuits. Google claimed Sycamore completed the task in 200 seconds while the world's most powerful supercomputer would need 10,000 years.</p>
+
+<p>IBM immediately pushed back, arguing that with clever classical algorithms and enough disk space, their Summit supercomputer could do it in 2.5 days — not 10,000 years. The debate continued for years, with classical simulation techniques improving dramatically.</p>
+
+<p>In 2024, Google raised the bar significantly with their <strong>Willow</strong> processor (105 qubits). They performed a random circuit sampling task that they estimated would take 10^25 years classically — a number so large it exceeds the age of the universe. More importantly, Willow demonstrated that increasing the number of qubits <em>reduced</em> the logical error rate (via surface codes), crossing a critical threshold for quantum error correction.</p>
+
+<blockquote style="border-left:4px solid #0984e3;padding:10px 20px;background:#ebf5fb;margin:20px 0;">
+<strong>The honest summary:</strong> Quantum supremacy has been demonstrated for sampling tasks that have no known practical application. The significance is in proving that quantum mechanics provides a computational resource that classical physics cannot efficiently simulate. That's foundational science, not a product.
+</blockquote>
+
+<h2 id="ibm-roadmap">IBM's Roadmap: Eagle to Heron to Starling</h2>
+
+<p>IBM has been the most transparent about their quantum hardware roadmap:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:20px 0;">
+<tr style="background:#f8f9fa;"><th style="padding:10px;border:1px solid #ddd;">Processor</th><th style="padding:10px;border:1px solid #ddd;">Qubits</th><th style="padding:10px;border:1px solid #ddd;">Year</th><th style="padding:10px;border:1px solid #ddd;">Key Achievement</th></tr>
+<tr><td style="padding:10px;border:1px solid #ddd;">Eagle</td><td style="padding:10px;border:1px solid #ddd;">127</td><td style="padding:10px;border:1px solid #ddd;">2021</td><td style="padding:10px;border:1px solid #ddd;">First processor over 100 qubits</td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd;">Osprey</td><td style="padding:10px;border:1px solid #ddd;">433</td><td style="padding:10px;border:1px solid #ddd;">2022</td><td style="padding:10px;border:1px solid #ddd;">3x qubit count increase</td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd;">Condor</td><td style="padding:10px;border:1px solid #ddd;">1,121</td><td style="padding:10px;border:1px solid #ddd;">2023</td><td style="padding:10px;border:1px solid #ddd;">First processor over 1,000 qubits</td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd;"><strong>Heron</strong></td><td style="padding:10px;border:1px solid #ddd;"><strong>133-156</strong></td><td style="padding:10px;border:1px solid #ddd;"><strong>2024</strong></td><td style="padding:10px;border:1px solid #ddd;"><strong>Focus on quality over quantity</strong></td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd;">Starling</td><td style="padding:10px;border:1px solid #ddd;">TBD</td><td style="padding:10px;border:1px solid #ddd;">2025-2026</td><td style="padding:10px;border:1px solid #ddd;">Error-corrected logical qubits</td></tr>
+</table>
+
+<p>Notice the pivot at Heron. After reaching 1,121 qubits with Condor, IBM shifted strategy. The Heron processors (<strong>ibm_fez</strong>, <strong>ibm_torino</strong>, <strong>ibm_marrakesh</strong>, <strong>ibm_kingston</strong>) have <em>fewer</em> qubits but significantly better gate fidelities and connectivity. IBM realized that 1,000 noisy qubits are less useful than 156 cleaner qubits.</p>
+
+<p>This is the direction the entire industry is moving: <strong>quality over quantity</strong>. A qubit that errors 1% of the time is dramatically more useful than one that errors 5% of the time, because error correction overhead scales exponentially with the physical error rate.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_019.png" alt="Quantum Genesis NFT #19 - the first NFT generated on IBM Quantum ibm_fez" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+<p style="text-align:center;font-size:0.9em;color:#666;">Quantum Genesis #19 — the first artwork generated on IBM's ibm_fez processor (156 qubits, Heron architecture).</p>
+
+<h2 id="origin-quantum">Origin Quantum's WK_C180: 180 Qubits From China</h2>
+
+<p>Origin Quantum (based in Hefei, China) receives far less press coverage in the West, but they're building serious hardware. Their <strong>WK_C180</strong> — which we believe is related to the Wukong ("Monkey King") processor family — offers 180 superconducting qubits accessible via their cloud platform.</p>
+
+<p>We accessed WK_C180 through their <strong>pyqpanda3</strong> SDK, which connects to their QCloud service. Our experience:</p>
+
+<ul>
+<li><strong>Access:</strong> Free tier available with an API key. Registration is straightforward.</li>
+<li><strong>SDK:</strong> pyqpanda3 is Python-native and reasonably well-documented (in Chinese, with some English).</li>
+<li><strong>Queue times:</strong> Varied wildly — sometimes seconds, sometimes hours. Less predictable than IBM.</li>
+<li><strong>Results:</strong> The measurement distributions had different noise characteristics than IBM. More entropy in some circuit configurations, which made for more visually complex art.</li>
+</ul>
+
+<p>Origin Quantum also offers the <strong>PQPUMESH8</strong> chip and several simulators (full_amplitude, partial_amplitude, single_amplitude). The real chips are the interesting ones — simulators give you the same distributions as classical random number generators.</p>
+
+<p>NFTs #1-18 in Quantum Genesis were generated on WK_C180. You can see a different aesthetic quality in those early pieces compared to the IBM-generated #19-100.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_005.png" alt="Quantum Genesis NFT #5 - generated on Origin Quantum WK_C180 with 180 qubits" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+<p style="text-align:center;font-size:0.9em;color:#666;">Quantum Genesis #5 — Origin Quantum WK_C180 (180 qubits). The noise signature differs visibly from IBM's processors.</p>
+
+<h2 id="what-you-can-run">What You Can Actually Run Today</h2>
+
+<p>Here's what current quantum hardware can and cannot do:</p>
+
+<h3>Things That Work</h3>
+
+<ul>
+<li><strong>Random circuit sampling:</strong> The supremacy benchmark. Quantum computers are genuinely faster at this, though the task has no direct practical application.</li>
+<li><strong>True random number generation:</strong> Quantum measurements are fundamentally random. This is what we used for Quantum Genesis. It's commercially viable today.</li>
+<li><strong>Small quantum chemistry simulations:</strong> Molecules with up to ~20-30 orbitals can be simulated using variational methods (VQE). The results sometimes match or beat classical methods — but only for systems small enough that classical methods also work.</li>
+<li><strong>QAOA for small optimization problems:</strong> The Quantum Approximate Optimization Algorithm can find approximate solutions to combinatorial problems. For small instances (<30 variables), it works. For larger instances, classical solvers still win.</li>
+<li><strong>Educational and research circuits:</strong> Understanding quantum mechanics, testing error correction schemes, calibrating hardware — the primary use case for most access today.</li>
+</ul>
+
+<h3>Things That Don't Work Yet</h3>
+
+<ul>
+<li><strong>Breaking encryption:</strong> Shor's algorithm needs thousands of error-corrected logical qubits. We have zero error-corrected logical qubits available for general use.</li>
+<li><strong>Drug discovery at scale:</strong> The molecules that matter (proteins, complex catalysts) require far more qubits and gate fidelity than available.</li>
+<li><strong>Machine learning speedup:</strong> Despite many papers, no quantum ML algorithm has demonstrated practical advantage on real hardware.</li>
+<li><strong>Financial optimization:</strong> Same story — theoretical speedups exist but hardware isn't there.</li>
+</ul>
+
+<h2 id="our-experience">Our Experience: Running Real Circuits on Both Platforms</h2>
+
+<p>For Quantum Genesis, we ran identical circuit structures on both IBM and Origin Quantum hardware. Here's what we observed:</p>
+
+<h3>Circuit Design</h3>
+
+<p>Our circuits used Hadamard gates (to create superposition) and CNOT gates (to create entanglement) on 4-6 qubits, measured with 4096 shots per NFT:</p>
+
+<pre><code># Simplified circuit for NFT seed generation
+# 1. Put all qubits in superposition (H gates)
+# 2. Create entanglement (CNOT ladder)
+# 3. Add rotation gates parameterized by token ID
+# 4. Measure all qubits, 4096 shots
+# 5. Hash the measurement distribution → seed</code></pre>
+
+<h3>IBM (ibm_fez, ibm_torino)</h3>
+
+<ul>
+<li>Queue time: 1-5 minutes (generally predictable)</li>
+<li>Execution time: ~19 seconds per circuit on ibm_fez</li>
+<li>Results: Consistent shot-to-shot. Noise signature was stable within a calibration cycle (~24h)</li>
+<li>SDK (Qiskit): Mature, well-documented, excellent tooling</li>
+<li>Transpilation: Required — IBM chips have limited connectivity, so logical circuits must be mapped to physical qubit topology</li>
+</ul>
+
+<h3>Origin Quantum (WK_C180)</h3>
+
+<ul>
+<li>Queue time: Highly variable (seconds to hours)</li>
+<li>Execution time: Comparable when it ran</li>
+<li>Results: Different noise profile — higher entropy in some configurations, which we attributed to different decoherence characteristics</li>
+<li>SDK (pyqpanda3): Functional but less mature than Qiskit. Documentation primarily in Chinese.</li>
+<li>Gotcha: The <code>measure()</code> syntax requires explicit classical bit specification — <code>measure([0,1], [0,1])</code> — which tripped us up initially</li>
+</ul>
+
+<h3>The Art Difference</h3>
+
+<p>NFTs #1-18 (Origin Quantum) and #19-100 (IBM) have subtly different aesthetic qualities because the noise profiles differ. Origin Quantum's measurements produced seeds with more entropy variation, leading to more varied color palettes and shape distributions. IBM's were more consistent but still uniquely random.</p>
+
+<h2 id="hype-vs-reality">Hype vs Reality</h2>
+
+<p>Let's be direct about where things stand in 2026:</p>
+
+<h3>The Hype</h3>
+
+<ul>
+<li>"Quantum computers will break all encryption" — Not for at least a decade, likely longer.</li>
+<li>"Quantum supremacy means quantum computers are faster" — Only for artificial benchmarks.</li>
+<li>"1000+ qubits means we're almost there" — Qubit count is misleading without quality metrics.</li>
+<li>"Quantum AI will revolutionize machine learning" — No evidence of this on real hardware.</li>
+</ul>
+
+<h3>The Reality</h3>
+
+<ul>
+<li>We are in the NISQ (Noisy Intermediate-Scale Quantum) era and will be for several more years.</li>
+<li>Error rates are improving but are still orders of magnitude too high for fault-tolerant computation.</li>
+<li>The most honest near-term applications are: quantum random number generation, small chemistry simulations, and fundamental research.</li>
+<li>IBM's pivot from Condor (1,121 qubits) to Heron (156 qubits) tells the real story — quality matters more than quantity.</li>
+<li>Both IBM and Origin Quantum provide genuine cloud access to real quantum hardware. You can run circuits today. The barrier to entry is knowledge, not access.</li>
+</ul>
+
+<h3>What Excites Us</h3>
+
+<p>Despite the reality check, we're genuinely optimistic about quantum computing. Here's why:</p>
+
+<ol>
+<li><strong>Error correction is working.</strong> Google's Willow crossed the threshold where adding qubits reduces errors. This is the foundation everything else builds on.</li>
+<li><strong>The hardware is real and accessible.</strong> We ran circuits on processors in New York (IBM) and Hefei (Origin Quantum) from a laptop in Brazil. The democratization is remarkable.</li>
+<li><strong>The talent pipeline is growing.</strong> Five years ago, quantum computing was a niche academic field. Now there are SDKs, cloud platforms, courses, and communities.</li>
+<li><strong>Quantum randomness has immediate value.</strong> Our NFT project proves you can build real products with quantum hardware today — you just have to be creative about what you build.</li>
+</ol>
+
+<p>The Quantum Genesis collection exists as a timestamp of this era. Each NFT is a permanent record of what quantum processors could do in early 2026 — noise, limitations, and all. When fault-tolerant quantum computers arrive years from now, these 100 artworks will be artifacts of the pioneer era.</p>
+
+<!-- CTA Box -->
+<div style="background:linear-gradient(135deg,#0984e3,#74b9ff);padding:30px;border-radius:12px;text-align:center;margin:30px 0;">
+<h3 style="color:#fff;margin-top:0;">Own a Piece of Quantum History</h3>
+<p style="color:#e0f0ff;margin-bottom:20px;">100 artworks from the NISQ era — generated by real quantum processors at IBM and Origin Quantum. Each one is an unreproducible snapshot of quantum noise.</p>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#fff;color:#0984e3;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:1.1em;">Browse Quantum Genesis</a>
+<p style="color:#b3d9ff;margin-top:15px;font-size:0.9em;">Read the full technical story on <a href="https://dev.to/marceloclaudecode01/i-used-a-real-quantum-computer-to-generate-art-and-the-randomness-is-nothing-like-what-algorithms-lno" target="_blank" rel="noopener" style="color:#fff;">Dev.to</a></p>
+</div>

@@ -1,0 +1,393 @@
+<!--
+Title: Pinata IPFS Tutorial: Upload and Pin NFT Art for Free
+Meta Description: Step-by-step guide to uploading NFT art and metadata to IPFS using Pinata's free tier. Complete Python script with batch upload support.
+Labels: tutorial, ipfs, nft, python
+Keywords: pinata ipfs tutorial, upload nft ipfs, pinata api python
+Permalink: pinata-ipfs-tutorial-nft-art
+-->
+
+<h2>Pinata IPFS Tutorial: Upload and Pin NFT Art for Free</h2>
+
+<p>When we built <strong>Quantum Genesis</strong> — a collection of 100 NFTs generated from real quantum computers — we needed a reliable, permanent storage solution for the artwork and metadata. Centralized servers go down. S3 buckets get deleted. But IPFS? IPFS is forever, as long as someone pins your content.</p>
+
+<p>That's where <strong>Pinata</strong> comes in. It's the easiest way to upload, pin, and manage files on IPFS — and their free tier is generous enough for most indie NFT projects. In this tutorial, I'll walk you through everything: from creating an account to batch-uploading 100 NFTs with a Python script.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_042.png" alt="Quantum Genesis NFT #42 — generated from IBM Quantum ibm_fez" width="400" />
+
+<h3>Table of Contents</h3>
+<ol>
+  <li><a href="#what-is-pinata">What Is Pinata and Why IPFS?</a></li>
+  <li><a href="#free-tier">Free Tier Limits</a></li>
+  <li><a href="#account-setup">Account Setup and API Keys</a></li>
+  <li><a href="#upload-single">Uploading a Single File</a></li>
+  <li><a href="#upload-folder">Uploading a Folder (Batch Upload)</a></li>
+  <li><a href="#metadata-json">Uploading Metadata JSONs</a></li>
+  <li><a href="#cids-explained">Understanding CIDs</a></li>
+  <li><a href="#verify-gateway">Verifying on Gateway</a></li>
+  <li><a href="#python-script">Complete Python Batch Upload Script</a></li>
+  <li><a href="#tips">Tips for Large Collections</a></li>
+</ol>
+
+<h3 id="what-is-pinata">1. What Is Pinata and Why IPFS?</h3>
+
+<p>IPFS (InterPlanetary File System) is a decentralized protocol for storing and sharing files. Unlike HTTP, where content lives at a specific server address, IPFS uses <strong>content addressing</strong> — each file gets a unique hash (CID) based on its contents. If the file changes, the CID changes. This makes IPFS perfect for NFTs because it guarantees the artwork linked to your token can never be silently swapped.</p>
+
+<p>The catch: IPFS nodes only keep files they've explicitly "pinned." Without pinning, your files get garbage-collected and disappear. <strong>Pinata</strong> is a pinning service that ensures your files stay available 24/7. They run IPFS nodes that permanently store your content and serve it through fast gateways.</p>
+
+<p>Alternatives exist — nft.storage, Infura IPFS, web3.storage — but Pinata has the best developer experience and the most straightforward API. For Quantum Genesis, we uploaded all 100 PNG artworks and 100 metadata JSON files through Pinata, and they've been reliably accessible ever since.</p>
+
+<h3 id="free-tier">2. Free Tier Limits</h3>
+
+<p>Pinata's free plan (as of early 2026) includes:</p>
+
+<table border="1" cellpadding="8" cellspacing="0">
+  <tr><th>Feature</th><th>Free Tier</th></tr>
+  <tr><td>Storage</td><td>1 GB</td></tr>
+  <tr><td>Files</td><td>500 max</td></tr>
+  <tr><td>Bandwidth</td><td>Unlimited (gateway)</td></tr>
+  <tr><td>API Requests</td><td>Unlimited</td></tr>
+  <tr><td>Dedicated Gateway</td><td>1 (custom subdomain)</td></tr>
+</table>
+
+<p>For a 100-piece collection, the math works out nicely. Our 100 PNGs averaged about 150KB each (15MB total), and the 100 metadata JSONs were under 1KB each. We used about 16MB of our 1GB quota. We uploaded the art folder as a single pinned directory (counts as 1 file), and the metadata folder as another (1 file). That's just 2 of 500 file slots.</p>
+
+<blockquote>
+<strong>Pro tip:</strong> Upload files as directories, not individual files. A directory of 100 images counts as 1 pinned item, not 100. This is critical for staying within the 500-file limit.
+</blockquote>
+
+<h3 id="account-setup">3. Account Setup and API Keys</h3>
+
+<p>Head to <a href="https://app.pinata.cloud/" target="_blank" rel="noopener">app.pinata.cloud</a> and create a free account. Once logged in:</p>
+
+<ol>
+  <li>Go to <strong>API Keys</strong> in the sidebar</li>
+  <li>Click <strong>New Key</strong></li>
+  <li>Enable <strong>pinFileToIPFS</strong> and <strong>pinJSONToIPFS</strong> permissions (or just grant Admin access for simplicity)</li>
+  <li>Name the key something descriptive like "quantum-genesis-upload"</li>
+  <li>Click <strong>Create Key</strong></li>
+</ol>
+
+<p>You'll get three values: <code>API Key</code>, <code>API Secret</code>, and <code>JWT</code>. Save all three immediately — the secret is only shown once. For our Python script, we'll use the JWT (it's the simplest auth method).</p>
+
+<pre><code># Store as environment variables (never hardcode!)
+# Windows:
+setx PINATA_JWT "your_jwt_token_here"
+setx PINATA_API_KEY "your_api_key"
+setx PINATA_SECRET_KEY "your_api_secret"
+
+# Linux/Mac:
+export PINATA_JWT="your_jwt_token_here"
+</code></pre>
+
+<p>You'll also get a <strong>dedicated gateway</strong> — a URL like <code>https://your-name.mypinata.cloud</code>. This is your personal IPFS gateway for fast, reliable access to your pinned content. Ours is <code>https://maroon-bright-perch-405.mypinata.cloud</code>.</p>
+
+<h3 id="upload-single">4. Uploading a Single File</h3>
+
+<p>Let's start simple. To upload one file via the Pinata API:</p>
+
+<pre><code>import requests
+import os
+
+PINATA_JWT = os.environ["PINATA_JWT"]
+
+def upload_file(filepath):
+    url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+    headers = {"Authorization": f"Bearer {PINATA_JWT}"}
+
+    filename = os.path.basename(filepath)
+    with open(filepath, "rb") as f:
+        files = {"file": (filename, f)}
+        response = requests.post(url, headers=headers, files=files)
+
+    data = response.json()
+    print(f"Uploaded {filename}")
+    print(f"CID: {data['IpfsHash']}")
+    print(f"Size: {data['PinSize']} bytes")
+    return data["IpfsHash"]
+
+# Usage
+cid = upload_file("quantum_genesis_001.png")
+# Access at: https://your-gateway.mypinata.cloud/ipfs/{cid}
+</code></pre>
+
+<p>The response includes the <code>IpfsHash</code> (the CID), the <code>PinSize</code>, and a <code>Timestamp</code>. The CID is what you'll reference in your NFT metadata.</p>
+
+<h3 id="upload-folder">5. Uploading a Folder (Our 100 SVGs → PNGs)</h3>
+
+<p>For NFT collections, you want all images in a single IPFS directory. This way, individual images are accessible at <code>ipfs://CID/filename.png</code>, which is the standard pattern for NFT metadata.</p>
+
+<pre><code>import requests
+import os
+
+PINATA_JWT = os.environ["PINATA_JWT"]
+
+def upload_folder(folder_path, pin_name="nft-art"):
+    url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+    headers = {"Authorization": f"Bearer {PINATA_JWT}"}
+
+    files = []
+    for filename in sorted(os.listdir(folder_path)):
+        filepath = os.path.join(folder_path, filename)
+        if os.path.isfile(filepath):
+            # The tuple format: (form field, (path_in_ipfs, file_obj, mime))
+            files.append((
+                "file",
+                (f"{pin_name}/{filename}", open(filepath, "rb"), "image/png")
+            ))
+
+    # Metadata to name the pin
+    import json
+    metadata = json.dumps({"name": pin_name})
+    options = json.dumps({"wrapWithDirectory": False})
+
+    response = requests.post(
+        url,
+        headers=headers,
+        files=files,
+        data={"pinataMetadata": metadata, "pinataOptions": options}
+    )
+
+    data = response.json()
+    print(f"Folder uploaded! CID: {data['IpfsHash']}")
+
+    # Close all file handles
+    for _, (_, fobj, _) in files:
+        fobj.close()
+
+    return data["IpfsHash"]
+
+# Upload all 100 PNGs
+art_cid = upload_folder("./nft-output/png/", pin_name="quantum-genesis-art")
+# Each image: ipfs://{art_cid}/quantum_genesis_001.png
+</code></pre>
+
+<p>For Quantum Genesis, our art folder CID came back as <code>bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a</code>. Each image is accessible at:</p>
+
+<pre><code>https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_042.png</code></pre>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_007.png" alt="Quantum Genesis NFT #7 — generated from Origin Quantum WK_C180" width="400" />
+
+<h3 id="metadata-json">6. Uploading Metadata JSONs</h3>
+
+<p>NFT metadata follows the ERC-721 metadata standard. Each token needs a JSON file with at minimum a <code>name</code>, <code>description</code>, and <code>image</code> field. Here's what one of ours looks like:</p>
+
+<pre><code>{
+  "name": "Quantum Genesis #42",
+  "description": "Generated from quantum measurements on IBM Quantum ibm_fez (156 qubits).",
+  "image": "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_042.png",
+  "attributes": [
+    {"trait_type": "Processor", "value": "IBM Quantum ibm_fez"},
+    {"trait_type": "Qubits Used", "value": 8},
+    {"trait_type": "Entropy Tier", "value": "High"},
+    {"trait_type": "Entanglement", "value": "GHZ-3"},
+    {"trait_type": "Color Palette", "value": "Nebula"},
+    {"trait_type": "Complexity Score", "value": 87}
+  ]
+}
+</code></pre>
+
+<p>Notice the <code>image</code> field uses <code>ipfs://</code> protocol, not an HTTP gateway URL. This is important — marketplaces like OpenSea resolve <code>ipfs://</code> links through their own gateways, ensuring long-term availability.</p>
+
+<p>Upload the metadata folder the same way as the art folder:</p>
+
+<pre><code>metadata_cid = upload_folder("./nft-output/metadata/", pin_name="quantum-genesis-metadata")
+# Each metadata: ipfs://{metadata_cid}/42
+</code></pre>
+
+<p>The metadata CID becomes your smart contract's <code>baseTokenURI</code>. When OpenSea calls <code>tokenURI(42)</code>, your contract returns <code>ipfs://{metadata_cid}/42</code>, OpenSea fetches the JSON, reads the <code>image</code> field, and displays your art.</p>
+
+<h3 id="cids-explained">7. Understanding CIDs</h3>
+
+<p>A CID (Content Identifier) is a cryptographic hash of your file's contents. Two important properties:</p>
+
+<ul>
+  <li><strong>Deterministic:</strong> The same file always produces the same CID. Upload the same PNG twice and you get the same hash.</li>
+  <li><strong>Immutable:</strong> If you change even one byte, the CID changes completely. This is why CIDs are perfect for NFT provenance — you can mathematically prove the artwork hasn't been tampered with.</li>
+</ul>
+
+<p>CIDs come in two versions:</p>
+
+<table border="1" cellpadding="8" cellspacing="0">
+  <tr><th>Version</th><th>Prefix</th><th>Example</th></tr>
+  <tr><td>CIDv0</td><td>Qm...</td><td>QmT5NvUtoM5nWFfrQdVrFtvGfKFmG7AHE8P34isapyhCxX</td></tr>
+  <tr><td>CIDv1</td><td>bafy...</td><td>bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a</td></tr>
+</table>
+
+<p>Pinata returns CIDv0 by default for single files and CIDv1 for directories. Both work fine. CIDv1 is the modern standard and is compatible with subdomains, which matters for gateway URLs.</p>
+
+<h3 id="verify-gateway">8. Verifying on Gateway</h3>
+
+<p>After uploading, always verify your files are accessible. You have several gateway options:</p>
+
+<pre><code># Your dedicated Pinata gateway (fastest)
+https://your-name.mypinata.cloud/ipfs/{CID}/filename.png
+
+# Public IPFS gateway (slower, sometimes down)
+https://ipfs.io/ipfs/{CID}/filename.png
+
+# Cloudflare IPFS gateway
+https://cloudflare-ipfs.com/ipfs/{CID}/filename.png
+</code></pre>
+
+<p>A quick verification script:</p>
+
+<pre><code>import requests
+
+def verify_uploads(cid, filenames, gateway):
+    for fname in filenames:
+        url = f"{gateway}/ipfs/{cid}/{fname}"
+        r = requests.head(url, timeout=10)
+        status = "OK" if r.status_code == 200 else f"FAIL ({r.status_code})"
+        print(f"{fname}: {status}")
+
+verify_uploads(
+    "bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a",
+    [f"quantum_genesis_{i:03d}.png" for i in range(1, 101)],
+    "https://maroon-bright-perch-405.mypinata.cloud"
+)
+</code></pre>
+
+<h3 id="python-script">9. Complete Python Batch Upload Script</h3>
+
+<p>Here's the production script we used for Quantum Genesis. It handles retries, progress tracking, and outputs the CID mapping you'll need for metadata generation:</p>
+
+<pre><code>#!/usr/bin/env python3
+"""
+upload_to_ipfs.py — Batch upload NFT art and metadata to Pinata IPFS
+Used for the Quantum Genesis collection (100 NFTs)
+"""
+
+import os
+import json
+import time
+import requests
+from pathlib import Path
+
+PINATA_JWT = os.environ["PINATA_JWT"]
+PINATA_API = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+HEADERS = {"Authorization": f"Bearer {PINATA_JWT}"}
+MAX_RETRIES = 3
+
+def upload_directory(folder_path, pin_name, file_ext=None):
+    """Upload a directory of files as a single IPFS directory pin."""
+    folder = Path(folder_path)
+    files_to_upload = sorted(folder.iterdir())
+
+    if file_ext:
+        files_to_upload = [f for f in files_to_upload if f.suffix == file_ext]
+
+    print(f"Uploading {len(files_to_upload)} files from {folder_path}...")
+
+    file_handles = []
+    files = []
+    for filepath in files_to_upload:
+        fh = open(filepath, "rb")
+        file_handles.append(fh)
+        mime = "image/png" if filepath.suffix == ".png" else "application/json"
+        files.append(("file", (f"{pin_name}/{filepath.name}", fh, mime)))
+
+    metadata = json.dumps({"name": pin_name})
+    options = json.dumps({"wrapWithDirectory": False})
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            # Reset file positions on retry
+            for fh in file_handles:
+                fh.seek(0)
+
+            response = requests.post(
+                PINATA_API,
+                headers=HEADERS,
+                files=files,
+                data={"pinataMetadata": metadata, "pinataOptions": options},
+                timeout=300  # 5 min timeout for large uploads
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            print(f"SUCCESS! CID: {data['IpfsHash']}")
+            print(f"Pin size: {data['PinSize']} bytes")
+
+            for fh in file_handles:
+                fh.close()
+            return data["IpfsHash"]
+
+        except Exception as e:
+            print(f"Attempt {attempt+1} failed: {e}")
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(5 * (attempt + 1))
+
+    for fh in file_handles:
+        fh.close()
+    raise Exception(f"Failed after {MAX_RETRIES} retries")
+
+
+def generate_metadata(art_cid, nft_data_path, output_dir):
+    """Generate ERC-721 metadata JSONs pointing to the art CID."""
+    os.makedirs(output_dir, exist_ok=True)
+
+    with open(nft_data_path) as f:
+        nfts = json.load(f)
+
+    for nft in nfts:
+        token_id = nft["token_id"]
+        metadata = {
+            "name": f"Quantum Genesis #{token_id}",
+            "description": nft.get("description", ""),
+            "image": f"ipfs://{art_cid}/{nft['filename']}",
+            "attributes": nft.get("attributes", [])
+        }
+
+        outpath = os.path.join(output_dir, str(token_id))
+        with open(outpath, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+    print(f"Generated {len(nfts)} metadata files in {output_dir}")
+
+
+if __name__ == "__main__":
+    # Step 1: Upload art
+    art_cid = upload_directory("./nft-output/png/", "quantum-genesis-art", ".png")
+
+    # Step 2: Generate metadata pointing to art CID
+    generate_metadata(art_cid, "./_nft_data.json", "./nft-output/metadata/")
+
+    # Step 3: Upload metadata
+    meta_cid = upload_directory("./nft-output/metadata/", "quantum-genesis-metadata")
+
+    print(f"\n{'='*60}")
+    print(f"Art CID:      {art_cid}")
+    print(f"Metadata CID: {meta_cid}")
+    print(f"Base URI:     ipfs://{meta_cid}/")
+    print(f"{'='*60}")
+    print(f"\nSet this as your contract's baseTokenURI:")
+    print(f"  contract.setBaseTokenURI('ipfs://{meta_cid}/')")
+</code></pre>
+
+<h3 id="tips">10. Tips for Large Collections</h3>
+
+<p>After uploading 100 NFTs, here's what we learned:</p>
+
+<ul>
+  <li><strong>Always upload as directories.</strong> Individual file pins eat your 500-file quota fast. A directory of 100 files counts as 1 pin.</li>
+  <li><strong>Use PNG, not SVG.</strong> OpenSea and most marketplaces display PNGs reliably. SVGs sometimes render incorrectly or don't display at all. We generated our art as SVG, then converted to PNG with Selenium (because cairosvg doesn't handle our complex SVGs well on Windows).</li>
+  <li><strong>Upload art first, then metadata.</strong> Metadata references the art CID, so you need the art CID before generating metadata JSONs.</li>
+  <li><strong>Set a long timeout.</strong> Uploading 100 PNGs (15MB+) can take a few minutes. Our script uses a 5-minute timeout.</li>
+  <li><strong>Verify every file after upload.</strong> Run HEAD requests against your gateway for each file. We found 0 failures, but it's worth checking.</li>
+  <li><strong>Use ipfs:// in metadata, not HTTP gateway URLs.</strong> The <code>ipfs://</code> protocol is the standard. Marketplaces resolve it through their own infrastructure.</li>
+  <li><strong>Keep your CIDs safe.</strong> Write them down, save them in env vars, commit them to your repo. Losing a CID means losing the link between your token and its content.</li>
+  <li><strong>Consider a paid plan for 1000+ collections.</strong> The free tier works great for small-to-medium collections, but if you're doing a 10K PFP project, you'll want the Picnic or Submarine plan.</li>
+</ul>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_099.png" alt="Quantum Genesis NFT #99 — one of the final pieces in our collection" width="400" />
+
+<p>Pinata makes IPFS painless. For Quantum Genesis, the entire upload process — 100 PNGs and 100 metadata files — took about 10 minutes and cost exactly $0. The content has been reliably pinned and accessible through our gateway ever since.</p>
+
+<p>In the next post, we'll cover how we priced each of the 100 NFTs using a data-driven model based on quantum entropy tiers and processor rarity.</p>
+
+<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 2px solid #0f3460; border-radius: 12px; padding: 24px; margin: 32px 0; text-align: center;">
+  <h3 style="color: #e94560; margin-top: 0;">Explore Quantum Genesis on OpenSea</h3>
+  <p style="color: #eee;">100 unique NFTs generated from real quantum computers — Origin Quantum WK_C180 and IBM Quantum ibm_fez. Stored permanently on IPFS. Minted on Polygon.</p>
+  <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display: inline-block; background: #e94560; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.1em;">View Collection on OpenSea</a>
+  <p style="color: #aaa; margin-bottom: 0; margin-top: 12px; font-size: 0.9em;">Contract: <code style="color: #7ec8e3;">0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27</code> (Polygon)</p>
+</div>
