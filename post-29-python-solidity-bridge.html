@@ -1,0 +1,493 @@
+<!--
+Title: Python to Solidity: Building the Bridge Between Off-Chain Art and On-Chain NFTs
+Meta Description: How to connect a Python art generation pipeline to a Solidity smart contract. Compilation, deployment, and minting with web3.py.
+Labels: tutorial, python, blockchain, nft
+Permalink: python-solidity-bridge
+-->
+
+<!-- Table of Contents -->
+<div style="background:#f8f9fa;border-left:4px solid #6c5ce7;padding:20px;margin-bottom:30px;border-radius:0 8px 8px 0;">
+<h3 style="margin-top:0;">Table of Contents</h3>
+<ol>
+<li><a href="#two-worlds">The Two Worlds: Python Off-Chain, Solidity On-Chain</a></li>
+<li><a href="#compilation">Compiling Solidity from Python with solcx</a></li>
+<li><a href="#connecting">Connecting to the Blockchain with web3.py</a></li>
+<li><a href="#deploying">Deploying the Contract from Python</a></li>
+<li><a href="#base-uri">Setting the baseURI to IPFS</a></li>
+<li><a href="#minting">Minting NFTs: Single and Batch</a></li>
+<li><a href="#reading">Reading On-Chain State</a></li>
+<li><a href="#verifying">Verifying on Block Explorer</a></li>
+<li><a href="#full-workflow">The Full Automated Workflow</a></li>
+</ol>
+</div>
+
+<p>Quantum Genesis lives in two worlds. The art — quantum circuits, measurements, SHA-256 seeds, SVG generation, PNG rendering — all happens in Python. The ownership, scarcity, and marketplace integration — ERC-721 tokens, royalties, transfers — all happens in Solidity on the Polygon blockchain.</p>
+
+<p>This post shows how to build the bridge between them. Everything here uses real code from our project: compiling Solidity contracts, deploying them, setting metadata URIs, and minting tokens — all from Python scripts.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/2.png" alt="Quantum Genesis NFT #2 — the first piece minted on Polygon" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+
+<h2 id="two-worlds">1. The Two Worlds: Python Off-Chain, Solidity On-Chain</h2>
+
+<p>Understanding the separation is critical before writing any code:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:20px 0;">
+<tr style="background:#6c5ce7;color:white;">
+<th style="padding:12px;text-align:left;">Layer</th>
+<th style="padding:12px;text-align:left;">Language</th>
+<th style="padding:12px;text-align:left;">Responsibility</th>
+</tr>
+<tr style="border-bottom:1px solid #ddd;">
+<td style="padding:12px;"><strong>Off-chain</strong></td>
+<td style="padding:12px;">Python</td>
+<td style="padding:12px;">Quantum circuits, measurements, art generation, IPFS upload, contract interaction</td>
+</tr>
+<tr style="border-bottom:1px solid #ddd;">
+<td style="padding:12px;"><strong>On-chain</strong></td>
+<td style="padding:12px;">Solidity</td>
+<td style="padding:12px;">Token ownership, supply cap, royalties, transfers, marketplace integration</td>
+</tr>
+</table>
+
+<p>The blockchain doesn't store images. It doesn't run art algorithms. It stores a URL (<code>tokenURI</code>) pointing to metadata on IPFS, which in turn points to the image on IPFS. The smart contract is a registry — "token #42 is owned by address 0xABC and its metadata is at ipfs://QmXYZ."</p>
+
+<p>Python orchestrates everything: it generates the art, uploads it to IPFS, then calls the smart contract to mint a token pointing to that IPFS metadata.</p>
+
+<h2 id="compilation">2. Compiling Solidity from Python with solcx</h2>
+
+<p>The <code>py-solc-x</code> package lets you compile Solidity contracts directly from Python, without needing Hardhat, Foundry, or any JavaScript toolchain.</p>
+
+<pre><code>pip install py-solc-x web3
+</code></pre>
+
+<p>First, install a Solidity compiler version:</p>
+
+<pre><code>import solcx
+
+# Install Solidity compiler 0.8.20
+solcx.install_solc('0.8.20')
+solcx.set_solc_version('0.8.20')
+</code></pre>
+
+<p>Now compile your contract. For an ERC-721 with OpenZeppelin, you need to handle imports. The cleanest approach is to use the <code>allow_paths</code> and <code>base_path</code> parameters if your contract uses local imports, or use flattened source code:</p>
+
+<pre><code>import solcx
+import json
+
+def compile_contract(source_path: str) -> tuple:
+    """
+    Compile a Solidity contract and return (abi, bytecode).
+    Assumes a flattened source file with no external imports.
+    """
+    with open(source_path, 'r') as f:
+        source_code = f.read()
+
+    # Compile with optimization
+    compiled = solcx.compile_source(
+        source_code,
+        output_values=['abi', 'bin'],
+        solc_version='0.8.20',
+        optimize=True,
+        optimize_runs=200
+    )
+
+    # solcx returns a dict keyed by "ContractName"
+    # Find the main contract (last one, or specify by name)
+    contract_id = list(compiled.keys())[-1]
+    contract = compiled[contract_id]
+
+    abi = contract['abi']
+    bytecode = contract['bin']
+
+    # Save ABI for later use
+    with open('contract_abi.json', 'w') as f:
+        json.dump(abi, f, indent=2)
+
+    return abi, bytecode
+</code></pre>
+
+<h3>Handling OpenZeppelin Imports</h3>
+
+<p>Our Quantum Genesis contract inherits from OpenZeppelin's ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981, and Ownable. For Python compilation, the simplest approach is to flatten the contract first:</p>
+
+<pre><code># Option 1: Use a pre-flattened file
+# npx hardhat flatten contracts/QuantumGenesis.sol > QuantumGenesisFlat.sol
+
+# Option 2: Install OpenZeppelin locally and set import paths
+compiled = solcx.compile_files(
+    ['contracts/QuantumGenesis.sol'],
+    output_values=['abi', 'bin'],
+    solc_version='0.8.20',
+    import_remappings=[
+        '@openzeppelin/=node_modules/@openzeppelin/'
+    ]
+)
+</code></pre>
+
+<p>For Quantum Genesis, we used a flattened source file. It's a single 200-line file that includes all needed OpenZeppelin code inlined. Less elegant, but zero dependency issues.</p>
+
+<h2 id="connecting">3. Connecting to the Blockchain with web3.py</h2>
+
+<p>web3.py is Python's gateway to any EVM blockchain. You need an RPC endpoint — a URL that connects you to a blockchain node.</p>
+
+<pre><code>from web3 import Web3
+
+# Polygon Mainnet via public RPC
+w3 = Web3(Web3.HTTPProvider('https://polygon-rpc.com'))
+
+# Verify connection
+print(f"Connected: {w3.is_connected()}")
+print(f"Chain ID: {w3.eth.chain_id}")  # 137 for Polygon
+print(f"Latest block: {w3.eth.block_number}")
+</code></pre>
+
+<h3>RPC Provider Options</h3>
+
+<ul>
+<li><strong>Public RPCs</strong> — Free but rate-limited. Fine for development and occasional minting. Examples: <code>polygon-rpc.com</code>, <code>rpc.ankr.com/polygon</code>.</li>
+<li><strong>Alchemy/Infura</strong> — Free tier with higher limits. Best for production. Get an API key from <a href="https://www.alchemy.com" target="_blank" rel="noopener">alchemy.com</a>.</li>
+<li><strong>Your own node</strong> — Maximum control but requires infrastructure.</li>
+</ul>
+
+<h3>Wallet Setup</h3>
+
+<p>To send transactions (deploy, mint), you need a private key. <strong>Never hardcode it</strong> — use environment variables:</p>
+
+<pre><code>import os
+
+private_key = os.environ['PRIVATE_KEY']
+account = w3.eth.account.from_key(private_key)
+wallet_address = account.address
+
+print(f"Wallet: {wallet_address}")
+print(f"Balance: {w3.from_wei(w3.eth.get_balance(wallet_address), 'ether')} MATIC")
+</code></pre>
+
+<h2 id="deploying">4. Deploying the Contract from Python</h2>
+
+<p>With compiled ABI + bytecode and a connected wallet, you can deploy:</p>
+
+<pre><code>def deploy_contract(w3, abi, bytecode, private_key,
+                     constructor_args=None):
+    """
+    Deploy a smart contract and return the contract address.
+    """
+    account = w3.eth.account.from_key(private_key)
+
+    # Create contract factory
+    Contract = w3.eth.contract(abi=abi, bytecode=bytecode)
+
+    # Build constructor transaction
+    if constructor_args:
+        tx = Contract.constructor(*constructor_args).build_transaction({
+            'from': account.address,
+            'nonce': w3.eth.get_transaction_count(account.address),
+            'gasPrice': w3.eth.gas_price,
+            'chainId': w3.eth.chain_id,
+        })
+    else:
+        tx = Contract.constructor().build_transaction({
+            'from': account.address,
+            'nonce': w3.eth.get_transaction_count(account.address),
+            'gasPrice': w3.eth.gas_price,
+            'chainId': w3.eth.chain_id,
+        })
+
+    # Estimate gas (add 20% buffer)
+    gas_estimate = w3.eth.estimate_gas(tx)
+    tx['gas'] = int(gas_estimate * 1.2)
+
+    # Sign and send
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+
+    print(f"Deploy TX: {tx_hash.hex()}")
+    print("Waiting for confirmation...")
+
+    # Wait for receipt
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+
+    contract_address = receipt['contractAddress']
+    print(f"Contract deployed at: {contract_address}")
+    print(f"Gas used: {receipt['gasUsed']}")
+
+    return contract_address
+</code></pre>
+
+<p>For Quantum Genesis, the constructor takes an initial owner address, a name ("Quantum Genesis"), and a symbol ("QGEN"):</p>
+
+<pre><code>contract_address = deploy_contract(
+    w3, abi, bytecode, private_key,
+    constructor_args=[wallet_address]  # initial owner
+)
+# Output: Contract deployed at: 0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27
+</code></pre>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/55.png" alt="Quantum Genesis NFT #55 — minted via our Python-to-Solidity pipeline" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+
+<h2 id="base-uri">5. Setting the baseURI to IPFS</h2>
+
+<p>Our contract uses a <code>baseURI</code> pattern: instead of storing individual URIs for each token, we set one base URI and each token's URI is <code>baseURI + tokenId</code>. This is gas-efficient for large collections.</p>
+
+<p>After uploading all 100 metadata JSON files to IPFS in a directory, Pinata gives us a CID for the directory. We then set this as the baseURI:</p>
+
+<pre><code>def set_base_uri(w3, contract, private_key, base_uri: str):
+    """Set the baseURI for token metadata."""
+    account = w3.eth.account.from_key(private_key)
+
+    tx = contract.functions.setBaseURI(base_uri).build_transaction({
+        'from': account.address,
+        'nonce': w3.eth.get_transaction_count(account.address),
+        'gasPrice': w3.eth.gas_price,
+        'chainId': w3.eth.chain_id,
+    })
+
+    gas_estimate = w3.eth.estimate_gas(tx)
+    tx['gas'] = int(gas_estimate * 1.2)
+
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    print(f"baseURI set. TX: {tx_hash.hex()}")
+    return receipt
+
+# Usage — note the trailing slash!
+ipfs_base = "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/"
+set_base_uri(w3, contract, private_key, ipfs_base)
+</code></pre>
+
+<p>Now <code>tokenURI(1)</code> returns <code>ipfs://bafybei.../1</code>, which resolves to the JSON metadata for token #1.</p>
+
+<h2 id="minting">6. Minting NFTs: Single and Batch</h2>
+
+<h3>Single Mint</h3>
+
+<pre><code>def mint_single(w3, contract, private_key, to_address: str):
+    """Mint the next token to an address."""
+    account = w3.eth.account.from_key(private_key)
+
+    tx = contract.functions.safeMint(to_address).build_transaction({
+        'from': account.address,
+        'nonce': w3.eth.get_transaction_count(account.address),
+        'gasPrice': w3.eth.gas_price,
+        'chainId': w3.eth.chain_id,
+    })
+
+    gas_estimate = w3.eth.estimate_gas(tx)
+    tx['gas'] = int(gas_estimate * 1.2)
+
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    print(f"Minted token. TX: {tx_hash.hex()}, Gas: {receipt['gasUsed']}")
+    return receipt
+</code></pre>
+
+<h3>Batch Minting</h3>
+
+<p>Minting 100 NFTs one by one works but is slow (each transaction needs confirmation). Our contract includes a batch mint function:</p>
+
+<pre><code>def mint_batch(w3, contract, private_key, to_address: str, quantity: int):
+    """Mint multiple tokens in one transaction."""
+    account = w3.eth.account.from_key(private_key)
+
+    tx = contract.functions.batchMint(
+        to_address, quantity
+    ).build_transaction({
+        'from': account.address,
+        'nonce': w3.eth.get_transaction_count(account.address),
+        'gasPrice': w3.eth.gas_price,
+        'chainId': w3.eth.chain_id,
+    })
+
+    gas_estimate = w3.eth.estimate_gas(tx)
+    tx['gas'] = int(gas_estimate * 1.2)
+
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+    tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=600)
+
+    print(f"Batch minted {quantity} tokens. TX: {tx_hash.hex()}")
+    print(f"Gas used: {receipt['gasUsed']}")
+    return receipt
+</code></pre>
+
+<h3>Nonce Management for Sequential Mints</h3>
+
+<p>If you're minting many tokens individually (without batch), manage nonces manually to avoid waiting for each confirmation:</p>
+
+<pre><code>def mint_sequential(w3, contract, private_key, to_address: str,
+                     count: int):
+    """Mint tokens sequentially with managed nonces."""
+    account = w3.eth.account.from_key(private_key)
+    nonce = w3.eth.get_transaction_count(account.address)
+    tx_hashes = []
+
+    for i in range(count):
+        tx = contract.functions.safeMint(to_address).build_transaction({
+            'from': account.address,
+            'nonce': nonce + i,
+            'gasPrice': w3.eth.gas_price,
+            'chainId': w3.eth.chain_id,
+            'gas': 200000,  # Fixed gas limit for known function
+        })
+
+        signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
+        tx_hashes.append(tx_hash)
+        print(f"Sent mint #{i+1}, TX: {tx_hash.hex()}")
+
+    # Wait for all to confirm
+    print(f"\nWaiting for {count} transactions to confirm...")
+    for i, tx_hash in enumerate(tx_hashes):
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+        status = "SUCCESS" if receipt['status'] == 1 else "FAILED"
+        print(f"  Mint #{i+1}: {status}, Gas: {receipt['gasUsed']}")
+</code></pre>
+
+<h2 id="reading">7. Reading On-Chain State</h2>
+
+<p>After minting, verify everything looks correct by reading contract state:</p>
+
+<pre><code># Load contract from address + ABI
+contract = w3.eth.contract(
+    address='0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27',
+    abi=abi
+)
+
+# Read basic info
+name = contract.functions.name().call()
+symbol = contract.functions.symbol().call()
+total_supply = contract.functions.totalSupply().call()
+max_supply = contract.functions.MAX_SUPPLY().call()
+
+print(f"Name: {name}")           # Quantum Genesis
+print(f"Symbol: {symbol}")       # QGEN
+print(f"Supply: {total_supply}/{max_supply}")  # 100/100
+
+# Check ownership of a specific token
+owner_of_42 = contract.functions.ownerOf(42).call()
+print(f"Owner of #42: {owner_of_42}")
+
+# Get tokenURI
+uri = contract.functions.tokenURI(42).call()
+print(f"Token URI #42: {uri}")
+# ipfs://bafybei.../42
+
+# Check royalty info (EIP-2981)
+receiver, amount = contract.functions.royaltyInfo(42, 10000).call()
+print(f"Royalty: {amount/100}% to {receiver}")
+# Royalty: 5.0% to 0xa198...
+</code></pre>
+
+<h2 id="verifying">8. Verifying on Block Explorer</h2>
+
+<p>After deployment, verify your contract source code on PolygonScan. This lets anyone read the code and interact with it through the explorer UI:</p>
+
+<pre><code># Using the polygonscan API (or do it manually on the website)
+import requests
+
+def verify_contract(contract_address, source_code, compiler_version,
+                     constructor_args_encoded=""):
+    """Verify contract source on PolygonScan."""
+    api_key = os.environ['POLYGONSCAN_API_KEY']
+
+    data = {
+        'apikey': api_key,
+        'module': 'contract',
+        'action': 'verifysourcecode',
+        'contractaddress': contract_address,
+        'sourceCode': source_code,
+        'codeformat': 'solidity-single-file',
+        'contractname': 'QuantumGenesis',
+        'compilerversion': f'v{compiler_version}',
+        'optimizationUsed': 1,
+        'runs': 200,
+        'constructorArguements': constructor_args_encoded,
+        'licenseType': 3,  # MIT
+    }
+
+    response = requests.post(
+        'https://api.polygonscan.com/api',
+        data=data
+    )
+    result = response.json()
+    print(f"Verification: {result}")
+    return result
+</code></pre>
+
+<p>Once verified, anyone can view the contract at <code>https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27#code</code>.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/100.png" alt="Quantum Genesis NFT #200 — the final piece in the collection" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+
+<h2 id="full-workflow">9. The Full Automated Workflow</h2>
+
+<p>Here's how all the pieces connect in Quantum Genesis. This is the actual flow we run to go from quantum measurement to listed NFT:</p>
+
+<pre><code>"""
+Full pipeline: Quantum Measurement → On-Chain NFT
+"""
+import os
+from web3 import Web3
+
+# --- Configuration ---
+PRIVATE_KEY = os.environ['PRIVATE_KEY']
+RPC_URL = 'https://polygon-rpc.com'
+CONTRACT_ADDRESS = '0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27'
+PINATA_JWT = os.environ['PINATA_JWT']
+
+# --- Step 1: Generate Art (quantum_nft_generator.py) ---
+# Run quantum circuit on IBM ibm_fez
+# Get measurement counts
+# SHA-256 → seed
+# QuantumRNG → art parameters
+# Generate SVG → render PNG
+# Generate metadata JSON with certificate
+
+# --- Step 2: Upload to IPFS (upload_to_ipfs.py) ---
+# Upload PNG to Pinata → get image CID
+# Update metadata JSON with image CID
+# Upload metadata to Pinata → get metadata CID
+# Upload all metadata to directory → get directory CID
+
+# --- Step 3: Set baseURI (one-time, after all uploads) ---
+w3 = Web3(Web3.HTTPProvider(RPC_URL))
+contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=abi)
+set_base_uri(w3, contract, PRIVATE_KEY,
+    f"ipfs://{directory_cid}/")
+
+# --- Step 4: Mint tokens ---
+wallet = w3.eth.account.from_key(PRIVATE_KEY).address
+mint_batch(w3, contract, PRIVATE_KEY, wallet, quantity=100)
+
+# --- Step 5: Verify ---
+total = contract.functions.totalSupply().call()
+print(f"Total minted: {total}")  # 100
+for token_id in [1, 42, 100]:
+    uri = contract.functions.tokenURI(token_id).call()
+    owner = contract.functions.ownerOf(token_id).call()
+    print(f"  #{token_id}: owner={owner}, uri={uri}")
+</code></pre>
+
+<h3>Key Lessons from Building This Pipeline</h3>
+
+<ul>
+<li><strong>Gas estimation is critical.</strong> Always add a buffer (20%) to estimated gas. Running out of gas mid-transaction wastes the gas already spent.</li>
+<li><strong>Nonce management matters.</strong> If a transaction fails and you're incrementing nonces manually, you'll need to either wait for the failed TX to be dropped or send a replacement transaction with the same nonce.</li>
+<li><strong>RPC rate limits exist.</strong> Public RPCs may throttle you during batch operations. Use a paid provider or add delays between calls.</li>
+<li><strong>Test on testnet first.</strong> Always deploy and test on Polygon Amoy (testnet) before mainnet. Free test MATIC is available from faucets.</li>
+<li><strong>Save your ABI.</strong> You need the ABI every time you interact with the contract. Save it to a JSON file during compilation.</li>
+</ul>
+
+<blockquote>
+Python handles everything the blockchain can't: quantum circuits, art generation, IPFS uploads, and orchestration. Solidity handles everything Python can't: trustless ownership, enforced scarcity, and marketplace integration. Together, they form a complete pipeline from physical quantum measurement to tradeable digital asset.
+</blockquote>
+
+<!-- CTA Box -->
+<div style="background:linear-gradient(135deg,#6c5ce7,#a855f7);padding:30px;border-radius:12px;text-align:center;margin:40px 0;">
+<h2 style="color:white;margin-top:0;">See the Pipeline's Output</h2>
+<p style="color:#e8e0ff;font-size:1.1em;">100 NFTs generated by quantum computers, uploaded to IPFS, and minted on Polygon — all orchestrated by Python scripts talking to a Solidity contract.</p>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:white;color:#6c5ce7;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:1.1em;margin-top:10px;">View on OpenSea</a>
+</div>

@@ -1,0 +1,312 @@
+<!--
+Title: How to List NFTs on OpenSea: The Complete 2026 Guide
+Meta Description: Step-by-step guide to listing your NFT collection on OpenSea — from connecting your wallet to setting prices and royalties.
+Labels: nft, tutorial, blockchain
+Permalink: opensea-listing-guide
+-->
+
+<!-- Table of Contents -->
+<div style="background:#f8f9fa;border-left:4px solid #6c5ce7;padding:20px;margin-bottom:30px;border-radius:0 8px 8px 0;">
+<h3 style="margin-top:0;">Table of Contents</h3>
+<ol>
+<li><a href="#prerequisites">Prerequisites: What You Need Before You Start</a></li>
+<li><a href="#create-account">Creating Your OpenSea Account</a></li>
+<li><a href="#connect-wallet">Connecting MetaMask to OpenSea</a></li>
+<li><a href="#import-collection">Importing Your Collection from a Smart Contract</a></li>
+<li><a href="#collection-details">Setting Collection Details</a></li>
+<li><a href="#listing-nfts">Listing Individual NFTs</a></li>
+<li><a href="#royalties">Setting Royalties with EIP-2981</a></li>
+<li><a href="#fees">OpenSea Fees Explained</a></li>
+<li><a href="#promotion">Promoting Your Listings</a></li>
+<li><a href="#tips">Tips for Visibility and Sales</a></li>
+</ol>
+</div>
+
+<p>You've deployed your smart contract. Your NFTs are minted and their metadata lives on IPFS. Now comes the part that actually matters for reaching collectors: listing on a marketplace. OpenSea remains the largest NFT marketplace in 2026, and if you're selling on Polygon (like we do with <strong>Quantum Genesis</strong>), listing is gas-free for sellers.</p>
+
+<p>This guide walks through every step — from creating your account to optimizing listings for maximum visibility. I'll use our own collection (<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> on Polygon) as a real-world example throughout.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/2.png" alt="Quantum Genesis NFT #2 — generated from Origin Quantum WK_C180 measurements" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+
+<h2 id="prerequisites">1. Prerequisites: What You Need Before You Start</h2>
+
+<p>Before touching OpenSea, make sure you have these in place:</p>
+
+<ul>
+<li><strong>A deployed ERC-721 or ERC-1155 contract</strong> — OpenSea auto-detects contracts on Ethereum, Polygon, Arbitrum, Optimism, Base, Avalanche, and other supported chains.</li>
+<li><strong>Minted NFTs</strong> — Your tokens must exist on-chain. OpenSea reads directly from the blockchain.</li>
+<li><strong>Metadata on IPFS or a reliable host</strong> — Each token's <code>tokenURI</code> must resolve to valid JSON with <code>name</code>, <code>description</code>, <code>image</code>, and optionally <code>attributes</code>.</li>
+<li><strong>MetaMask (or another supported wallet)</strong> — MetaMask is the most common. Install the browser extension.</li>
+<li><strong>Some native gas tokens</strong> — On Polygon, you need a small amount of MATIC for approvals. On Ethereum, you need ETH.</li>
+</ul>
+
+<p>For Quantum Genesis, our contract is <code>0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27</code> on Polygon, with all 100 NFTs minted and metadata pinned to Pinata IPFS.</p>
+
+<h2 id="create-account">2. Creating Your OpenSea Account</h2>
+
+<p>OpenSea doesn't have a traditional "sign up" flow. Your account <em>is</em> your wallet.</p>
+
+<ol>
+<li>Go to <a href="https://opensea.io" target="_blank" rel="noopener">opensea.io</a>.</li>
+<li>Click the wallet icon (top right) or "Login".</li>
+<li>Select MetaMask from the wallet options.</li>
+<li>MetaMask will pop up asking you to connect. Approve the connection.</li>
+<li>OpenSea may ask you to sign a message to verify ownership — this is a gasless signature, not a transaction.</li>
+</ol>
+
+<p>Once connected, you have an account. Go to your profile settings to add a username, bio, profile picture, and banner. These details appear on your public profile and lend credibility to potential buyers.</p>
+
+<h3>Profile Optimization Tips</h3>
+
+<ul>
+<li>Use a recognizable username — ideally matching your brand or project name.</li>
+<li>Write a concise bio mentioning your collection's unique angle.</li>
+<li>Add links to your website, Twitter/X, and any relevant social channels.</li>
+<li>Upload a high-quality profile image (at least 350x350 pixels).</li>
+</ul>
+
+<h2 id="connect-wallet">3. Connecting MetaMask to OpenSea</h2>
+
+<p>If you deployed your contract from a specific wallet, you <em>must</em> connect that same wallet to OpenSea. The deployer address is automatically recognized as the collection owner, giving you access to collection-level settings.</p>
+
+<h3>Switching Networks in MetaMask</h3>
+
+<p>If your NFTs are on Polygon (like ours), make sure MetaMask is set to the Polygon network:</p>
+
+<ol>
+<li>Open MetaMask and click the network dropdown at the top.</li>
+<li>Select "Polygon Mainnet." If it's not listed, add it manually:
+<ul>
+<li>Network Name: <code>Polygon Mainnet</code></li>
+<li>RPC URL: <code>https://polygon-rpc.com</code></li>
+<li>Chain ID: <code>137</code></li>
+<li>Symbol: <code>MATIC</code></li>
+<li>Explorer: <code>https://polygonscan.com</code></li>
+</ul>
+</li>
+</ol>
+
+<p>OpenSea supports multiple chains simultaneously — but your wallet must be on the correct network when you sign transactions like listings.</p>
+
+<h2 id="import-collection">4. Importing Your Collection from a Smart Contract</h2>
+
+<p>This is where OpenSea shines: <strong>you don't need to manually import anything</strong>. OpenSea's indexer automatically detects ERC-721 and ERC-1155 contracts and creates a collection page.</p>
+
+<p>After minting, your NFTs typically appear on OpenSea within minutes. If they don't show up immediately:</p>
+
+<ul>
+<li>Visit <code>https://opensea.io/assets/matic/YOUR_CONTRACT_ADDRESS/1</code> (replace with your contract and token ID).</li>
+<li>Click "Refresh metadata" on any NFT page to force OpenSea to re-index.</li>
+<li>For bulk refresh, use the OpenSea API endpoint: <code>POST /api/v2/chain/matic/contract/{address}/nfts/{id}/refresh</code>.</li>
+</ul>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png" alt="Quantum Genesis NFT #42 — generated from IBM Quantum ibm_fez measurements" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+
+<h2 id="collection-details">5. Setting Collection Details</h2>
+
+<p>Once your collection is detected, go to your collection page and click "Edit collection" (only visible to the deployer wallet). Here you can set:</p>
+
+<h3>Essential Fields</h3>
+
+<ul>
+<li><strong>Collection name</strong> — This is pulled from your contract's <code>name()</code> function, but you can customize it.
+<li><strong>Description</strong> — Tell the story. For Quantum Genesis, we explain that each NFT was generated from real quantum computer measurements. This is your elevator pitch.</li>
+<li><strong>Category</strong> — Choose "Art" or "Generative Art" for algorithmic/quantum art.</li>
+<li><strong>Logo image</strong> — 350x350 pixels minimum. Use a representative piece from your collection.</li>
+<li><strong>Banner image</strong> — 1400x350 pixels. Create a banner that showcases your collection's visual style.</li>
+<li><strong>Featured image</strong> — 600x400 pixels. This appears in collection cards on the homepage.</li>
+</ul>
+
+<h3>Links and Social</h3>
+
+<ul>
+<li>Website URL</li>
+<li>Discord server</li>
+<li>Twitter/X handle</li>
+<li>Medium or blog URL</li>
+</ul>
+
+<p>Fill out every field you can. Collections with complete profiles get better visibility in search results and OpenSea's editorial picks.</p>
+
+<h2 id="listing-nfts">6. Listing Individual NFTs</h2>
+
+<p>With your collection set up, it's time to list NFTs for sale. Navigate to any NFT in your collection and click "List for sale."</p>
+
+<h3>Fixed Price Listing</h3>
+
+<p>The simplest option. You set a price in ETH (or WETH/MATIC on Polygon) and buyers can purchase immediately.</p>
+
+<ol>
+<li>Click "List for sale" on the NFT page.</li>
+<li>Select "Fixed price."</li>
+<li>Enter your price. Research comparable collections to price competitively.</li>
+<li>Set the listing duration (1 day, 3 days, 7 days, 1 month, 3 months, or 6 months).</li>
+<li>Click "Complete listing" and sign the transaction in MetaMask.</li>
+</ol>
+
+<p><strong>On Polygon, listing is completely gas-free.</strong> You're signing a gasless order, not sending a transaction. Buyers pay the gas when purchasing.</p>
+
+<h3>Auction Listing</h3>
+
+<p>OpenSea supports English auctions (ascending price) and Dutch auctions (descending price).</p>
+
+<ul>
+<li><strong>English auction</strong> — Set a starting price. Bidders compete upward. The highest bidder wins when the auction ends. Bids are made in WETH.</li>
+<li><strong>Dutch auction</strong> — Set a starting price and ending price. The price decreases linearly over time. The first buyer to accept the current price gets the NFT.</li>
+</ul>
+
+<p>For a new collection, I recommend starting with fixed-price listings. Auctions work better once you have an established audience and demand.</p>
+
+<h3>Batch Listing</h3>
+
+<p>If you have many NFTs to list (like our 100), doing it one by one is painful. Options:</p>
+
+<ul>
+<li><strong>OpenSea UI</strong> — Select multiple NFTs from your collection page and list them in batch. You'll still need to sign once per NFT.</li>
+<li><strong>OpenSea API</strong> — For developers, use the <a href="https://docs.opensea.io/reference/create-listing" target="_blank" rel="noopener">Listing API</a> to create listings programmatically. You'll need an API key from the OpenSea developer portal.</li>
+<li><strong>Custom script</strong> — Use the Seaport protocol SDK to create and sign orders programmatically. This is what we use for Quantum Genesis.</li>
+</ul>
+
+<h2 id="royalties">7. Setting Royalties with EIP-2981</h2>
+
+<p>Royalties ensure you earn a percentage of every secondary sale. There are two layers:</p>
+
+<h3>On-Chain Royalties (EIP-2981)</h3>
+
+<p>If your smart contract implements the <code>ERC2981</code> interface, marketplaces query it to determine royalty amounts. Our Quantum Genesis contract sets <strong>5% royalties</strong> at the contract level:</p>
+
+<pre><code>// In the Solidity contract constructor
+_setDefaultRoyalty(owner, 500); // 500 basis points = 5%
+</code></pre>
+
+<p>This is the most reliable method because it's enforced by the contract itself. OpenSea reads the <code>royaltyInfo()</code> function and applies it automatically.</p>
+
+<h3>OpenSea Collection Royalties</h3>
+
+<p>You can also set royalties through OpenSea's collection settings. Go to Edit Collection and set the "Creator earnings" percentage plus a payout address. OpenSea enforces these on its own platform. Set this to match your on-chain royalties for consistency.</p>
+
+<blockquote>
+<strong>Important:</strong> As of 2025, OpenSea enforces creator fees on collections that use the Operator Filter Registry or have on-chain EIP-2981 royalties. Collections without on-chain enforcement may see optional creator fees (buyers can choose to pay 0%). Always implement EIP-2981 in your contract.
+</blockquote>
+
+<h2 id="fees">8. OpenSea Fees Explained</h2>
+
+<p>Understanding fees is critical for pricing:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:20px 0;">
+<tr style="background:#6c5ce7;color:white;">
+<th style="padding:12px;text-align:left;">Fee Type</th>
+<th style="padding:12px;text-align:left;">Amount</th>
+<th style="padding:12px;text-align:left;">Who Pays</th>
+</tr>
+<tr style="border-bottom:1px solid #ddd;">
+<td style="padding:12px;">OpenSea service fee</td>
+<td style="padding:12px;">2.5%</td>
+<td style="padding:12px;">Seller (deducted from sale price)</td>
+</tr>
+<tr style="border-bottom:1px solid #ddd;">
+<td style="padding:12px;">Creator royalties</td>
+<td style="padding:12px;">0-10% (you set this)</td>
+<td style="padding:12px;">Seller (deducted from sale price)</td>
+</tr>
+<tr style="border-bottom:1px solid #ddd;">
+<td style="padding:12px;">Gas fees (listing)</td>
+<td style="padding:12px;">Free on Polygon</td>
+<td style="padding:12px;">N/A</td>
+</tr>
+<tr style="border-bottom:1px solid #ddd;">
+<td style="padding:12px;">Gas fees (purchase)</td>
+<td style="padding:12px;">Variable</td>
+<td style="padding:12px;">Buyer</td>
+</tr>
+</table>
+
+<p>With our 5% royalty on Quantum Genesis, the total fee per sale is <strong>7.5%</strong> (2.5% OpenSea + 5% creator). If an NFT sells for 1 ETH, the seller receives 0.925 ETH.</p>
+
+<h2 id="promotion">9. Promoting Your Listings</h2>
+
+<p>Listing is only half the battle. You need to drive traffic to your collection.</p>
+
+<h3>Social Media Strategy</h3>
+
+<ul>
+<li><strong>Twitter/X</strong> — The primary channel for NFT promotion. Share your collection's story, behind-the-scenes process, and individual pieces. Use relevant hashtags: #NFT #NFTArt #QuantumArt #GenerativeArt #PolygonNFT.</li>
+<li><strong>Discord</strong> — Build a community around your project. Share updates, engage with collectors, and create exclusive channels for holders.</li>
+<li><strong>Instagram</strong> — Visual platform perfect for art NFTs. Post high-quality images of your pieces.</li>
+<li><strong>Reddit</strong> — Share in r/NFT, r/CryptoArt, r/generativeart, and niche communities.</li>
+</ul>
+
+<h3>Content Marketing</h3>
+
+<ul>
+<li><strong>Blog posts</strong> (like this one!) explaining your process</li>
+<li><strong>Dev.to or Medium articles</strong> for technical audiences</li>
+<li><strong>YouTube/TikTok videos</strong> showing the creation process</li>
+<li><strong>Collaborations</strong> with other artists and collectors</li>
+</ul>
+
+<h3>OpenSea-Specific Promotion</h3>
+
+<ul>
+<li>Keep your collection metadata complete and polished.</li>
+<li>Create "drops" for coordinated launches.</li>
+<li>Engage with the OpenSea community on their official Discord.</li>
+</ul>
+
+<h2 id="tips">10. Tips for Visibility and Sales</h2>
+
+<p>After listing hundreds of NFTs across multiple projects, here are the tactics that actually move the needle:</p>
+
+<h3>Pricing Strategy</h3>
+
+<ul>
+<li><strong>Price a few pieces low</strong> to generate initial sales and floor activity. OpenSea's algorithm favors collections with trading volume.</li>
+<li><strong>Tier your prices</strong> by rarity or attributes. Our quantum-processor-based tiers (Origin Quantum pieces vs. IBM Quantum pieces) create natural price differentiation.</li>
+<li><strong>Don't overprice at launch.</strong> A collection with zero sales at 1 ETH each is less attractive than one with 10 sales at 0.01 ETH each.</li>
+</ul>
+
+<h3>Metadata Quality</h3>
+
+<ul>
+<li>Rich attributes improve discoverability. OpenSea creates filters from your trait metadata. Collectors can search by attributes like "Quantum Processor: IBM ibm_fez" or "Color Palette: Nebula."</li>
+<li>High-resolution images load better and look more professional.</li>
+<li>Descriptive names are better than "NFT #47." (Though numbered series work fine for generative collections.)</li>
+</ul>
+
+<h3>Community Building</h3>
+
+<ul>
+<li>Respond to every comment and offer on OpenSea.</li>
+<li>AMA sessions about your process build trust.</li>
+<li>Consider airdrops or giveaways to early supporters.</li>
+<li>Tell the story behind each piece — for us, each NFT has a quantum certificate showing exactly which processor and circuit generated it.</li>
+</ul>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/77.png" alt="Quantum Genesis NFT #107 — generated from IBM Quantum ibm_torino measurements" style="max-width:100%;border-radius:12px;margin:20px 0;" />
+
+<h3>Timing</h3>
+
+<ul>
+<li>List during peak activity hours (typically US evenings / European afternoons).</li>
+<li>Coordinate listing announcements with social media posts.</li>
+<li>Refresh listings periodically — stale listings drop in search rankings.</li>
+</ul>
+
+<h3>Cross-Promotion</h3>
+
+<ul>
+<li>Feature your OpenSea collection in your email signature, blog, and social bios.</li>
+<li>Collaborate with other Polygon-based collections for cross-promotion.</li>
+<li>Submit your collection to NFT calendars and directories.</li>
+</ul>
+
+<blockquote>
+<strong>Final thought:</strong> OpenSea is a tool, not a strategy. The marketplace handles the infrastructure — discovery, transactions, provenance tracking. But driving demand is your job. The best-listed NFT in the world won't sell without an audience that cares about your work. Build the story first, then the listing.
+</blockquote>
+
+<!-- CTA Box -->
+<div style="background:linear-gradient(135deg,#6c5ce7,#a855f7);padding:30px;border-radius:12px;text-align:center;margin:40px 0;">
+<h2 style="color:white;margin-top:0;">Explore the Quantum Genesis Collection</h2>
+<p style="color:#e8e0ff;font-size:1.1em;">100 unique artworks generated from real quantum computer measurements. Each piece comes with a Certificate of Quantum Authenticity.</p>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:white;color:#6c5ce7;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:1.1em;margin-top:10px;">View on OpenSea</a>
+</div>

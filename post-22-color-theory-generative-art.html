@@ -1,0 +1,289 @@
+<!--
+Title: Color Theory for Generative Artists: HSL, Harmonies, and Code
+Meta Description: Master color theory for generative art: HSL color space, 5 harmony types, and how to implement beautiful palettes in Python.
+Labels: generative-art, tutorial, python
+Permalink: color-theory-generative-art
+-->
+
+<div style="background:linear-gradient(135deg,#ff6ec7,#7b2ff7,#00ffcc);color:#fff;padding:20px 25px;border-radius:10px;margin-bottom:30px;">
+<h2 style="margin-top:0;">Color Theory for Generative Artists: HSL, Harmonies, and Code</h2>
+<p style="font-size:1.1em;">Beautiful generative art isn't random color soup. It's deliberate color theory + controlled randomness. Here's how we built the palette system for <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="color:#fff;text-decoration:underline;">Quantum Genesis</a>.</p>
+</div>
+
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#rgb-vs-hsl">RGB vs HSL: Why HSL Wins for Generative Art</a></li>
+<li><a href="#hsl-explained">Hue, Saturation, Lightness Explained</a></li>
+<li><a href="#five-harmonies">The 5 Color Harmonies</a></li>
+<li><a href="#python-implementation">Python Implementation</a></li>
+<li><a href="#palette-generation">Generating Palettes with Variations</a></li>
+<li><a href="#quantum-randomness">Quantum Randomness Meets Color Theory</a></li>
+</ol>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/12.png" alt="Quantum Genesis NFT #22 — vivid complementary color harmony generated from quantum randomness" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h2 id="rgb-vs-hsl">1. RGB vs HSL: Why HSL Wins for Generative Art</h2>
+
+<p>RGB (Red, Green, Blue) is how screens display color. Each channel is 0-255, giving 16.7 million combinations. But RGB is terrible for generative art because it's not intuitive for design decisions.</p>
+
+<p>Want a "slightly warmer" version of a color in RGB? You'd need to increase red, maybe decrease blue, adjust green... it's guesswork. Want a "pastel" palette? Good luck calculating that across RGB channels.</p>
+
+<p><strong>HSL (Hue, Saturation, Lightness)</strong> maps directly to how humans think about color:</p>
+
+<ul>
+<li><strong>Hue</strong> (0-360): The color itself — red, orange, yellow, green, blue, purple. It's a circle.</li>
+<li><strong>Saturation</strong> (0-100%): How vivid vs gray. 100% is pure color, 0% is grayscale.</li>
+<li><strong>Lightness</strong> (0-100%): How bright vs dark. 0% is black, 100% is white, 50% is pure color.</li>
+</ul>
+
+<p>Now "slightly warmer" means +10 hue. "Pastel" means saturation 40-60%, lightness 70-85%. Simple, predictable, programmable.</p>
+
+<blockquote style="border-left:4px solid #ff6ec7;padding:10px 20px;background:#fff0f5;">
+<strong>Rule of thumb:</strong> Use RGB for rendering. Use HSL for thinking about and generating colors. Convert at the last moment.
+</blockquote>
+
+<h2 id="hsl-explained">2. Hue, Saturation, Lightness Explained</h2>
+
+<h3>The Hue Wheel (0-360)</h3>
+
+<p>Hue is a circle — 0 and 360 are both red. The major landmarks:</p>
+
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;margin:15px 0;">
+<tr style="background:#0a0a2e;color:#00ffcc;"><th>Degrees</th><th>Color</th><th>Hex Example</th></tr>
+<tr><td>0</td><td style="color:#ff0000;">Red</td><td>#FF0000</td></tr>
+<tr><td>30</td><td style="color:#ff8000;">Orange</td><td>#FF8000</td></tr>
+<tr><td>60</td><td style="color:#cccc00;">Yellow</td><td>#FFFF00</td></tr>
+<tr><td>120</td><td style="color:#00cc00;">Green</td><td>#00FF00</td></tr>
+<tr><td>180</td><td style="color:#00cccc;">Cyan</td><td>#00FFFF</td></tr>
+<tr><td>240</td><td style="color:#0000ff;">Blue</td><td>#0000FF</td></tr>
+<tr><td>270</td><td style="color:#8000ff;">Purple</td><td>#8000FF</td></tr>
+<tr><td>300</td><td style="color:#ff00ff;">Magenta</td><td>#FF00FF</td></tr>
+</table>
+
+<p>Because hue is circular, you can rotate freely. Adding 180 gives the complementary color. Adding 120 gives triadic colors. This circular property is the foundation of all color harmonies.</p>
+
+<h3>Saturation: Vivid to Muted</h3>
+
+<p>Saturation controls intensity. At 100%, colors are pure and vibrant — electric blue, fire-engine red. At 0%, everything is gray. For generative art, saturation ranges create mood:</p>
+
+<ul>
+<li><strong>80-100%:</strong> Bold, energetic, pop art feel</li>
+<li><strong>50-70%:</strong> Rich but natural, most versatile range</li>
+<li><strong>20-40%:</strong> Muted, sophisticated, editorial feel</li>
+<li><strong>0-15%:</strong> Nearly monochrome, minimal</li>
+</ul>
+
+<h3>Lightness: Light to Dark</h3>
+
+<p>Lightness controls the tonal value. The sweet spots for generative art:</p>
+
+<ul>
+<li><strong>85-95%:</strong> Pastels (with medium saturation)</li>
+<li><strong>60-75%:</strong> Bright, readable colors</li>
+<li><strong>40-55%:</strong> Mid-tones, the most "colorful" range</li>
+<li><strong>15-30%:</strong> Deep, rich tones (jewel tones with high saturation)</li>
+</ul>
+
+<h2 id="five-harmonies">3. The 5 Color Harmonies</h2>
+
+<p>Color harmonies are mathematically defined relationships on the hue wheel that produce aesthetically pleasing combinations. Each harmony type has a distinct visual character.</p>
+
+<h3>1. Complementary (180 degrees apart)</h3>
+
+<p>Two colors directly opposite on the hue wheel. Maximum contrast, high energy. Examples: red/cyan, blue/orange, purple/yellow.</p>
+
+<p><strong>Best for:</strong> Bold designs, focal points, high-impact visuals. Use one color as dominant (70%) and the complement as accent (30%).</p>
+
+<h3>2. Analogous (±30 degrees)</h3>
+
+<p>Three colors adjacent on the hue wheel. Harmonious, natural, easy on the eyes. Examples: blue/blue-purple/purple, yellow/yellow-green/green.</p>
+
+<p><strong>Best for:</strong> Serene, cohesive compositions. Nature-inspired palettes. Very low risk of clashing.</p>
+
+<h3>3. Triadic (120 degrees apart)</h3>
+
+<p>Three colors equally spaced on the hue wheel. Balanced, vibrant, playful. Examples: red/yellow/blue (primary), orange/green/purple (secondary).</p>
+
+<p><strong>Best for:</strong> Energetic, balanced compositions. Works well when one color dominates and two accent.</p>
+
+<h3>4. Split-Complementary (150 and 210 degrees)</h3>
+
+<p>One base color plus the two colors adjacent to its complement. Almost as much contrast as complementary, but less tension. Example: blue + yellow-orange + red-orange.</p>
+
+<p><strong>Best for:</strong> Beginners — hard to mess up. Gives contrast without the intensity of pure complementary.</p>
+
+<h3>5. Tetradic (Rectangle — 60, 180, 240 degrees)</h3>
+
+<p>Four colors forming a rectangle on the hue wheel. Rich, complex palettes with lots of variety. Example: red + yellow + cyan + blue.</p>
+
+<p><strong>Best for:</strong> Complex generative art with many elements. Requires careful balance — let one color dominate.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png" alt="Quantum Genesis NFT #42 — triadic color harmony with quantum-derived hue selection" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h2 id="python-implementation">4. Python Implementation</h2>
+
+<p>Let's build the color system from scratch. First, the HSL to RGB conversion:</p>
+
+<pre><code>import colorsys
+
+def hsl_to_rgb(h, s, l):
+    """Convert HSL to RGB.
+    h: 0-360 (degrees)
+    s: 0-100 (percentage)
+    l: 0-100 (percentage)
+    Returns: (r, g, b) each 0-255
+    """
+    h_norm = h / 360.0
+    s_norm = s / 100.0
+    l_norm = l / 100.0
+    r, g, b = colorsys.hls_to_rgb(h_norm, l_norm, s_norm)
+    return (int(r * 255), int(g * 255), int(b * 255))
+
+def rgb_to_hex(r, g, b):
+    """Convert RGB to hex string."""
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+# Example:
+color = hsl_to_rgb(210, 80, 55)   # Vivid blue
+print(rgb_to_hex(*color))          # #1c6fdb
+</code></pre>
+
+<p>Now the five harmony generators:</p>
+
+<pre><code>def complementary(base_hue):
+    """Return 2 hues: base and its complement."""
+    return [base_hue, (base_hue + 180) % 360]
+
+def analogous(base_hue, spread=30):
+    """Return 3 adjacent hues."""
+    return [
+        (base_hue - spread) % 360,
+        base_hue,
+        (base_hue + spread) % 360
+    ]
+
+def triadic(base_hue):
+    """Return 3 equally-spaced hues."""
+    return [base_hue, (base_hue + 120) % 360, (base_hue + 240) % 360]
+
+def split_complementary(base_hue, spread=30):
+    """Return 3 hues: base + two near the complement."""
+    comp = (base_hue + 180) % 360
+    return [base_hue, (comp - spread) % 360, (comp + spread) % 360]
+
+def tetradic(base_hue):
+    """Return 4 hues forming a rectangle."""
+    return [
+        base_hue,
+        (base_hue + 60) % 360,
+        (base_hue + 180) % 360,
+        (base_hue + 240) % 360
+    ]
+</code></pre>
+
+<h2 id="palette-generation">5. Generating Palettes with Variations</h2>
+
+<p>Raw harmony hues are just the skeleton. A complete palette needs saturation and lightness variation for depth:</p>
+
+<pre><code>import random
+
+def generate_palette(harmony_hues, num_colors=5, seed=None):
+    """Generate a full palette from harmony hues with S/L variations."""
+    if seed is not None:
+        random.seed(seed)
+
+    palette = []
+    for i in range(num_colors):
+        hue = random.choice(harmony_hues)
+        # Add small hue variation (±10 degrees)
+        hue = (hue + random.uniform(-10, 10)) % 360
+        # Saturation: biased toward vivid
+        sat = random.uniform(55, 95)
+        # Lightness: avoid extremes (too dark / too light)
+        lit = random.uniform(35, 75)
+        rgb = hsl_to_rgb(hue, sat, lit)
+        palette.append({
+            'hsl': (round(hue), round(sat), round(lit)),
+            'rgb': rgb,
+            'hex': rgb_to_hex(*rgb)
+        })
+
+    return palette
+
+# Generate a triadic palette:
+hues = triadic(base_hue=220)    # Blue-based triadic
+palette = generate_palette(hues, num_colors=6, seed=42)
+for c in palette:
+    print(f"  {c['hex']}  HSL({c['hsl'][0]}, {c['hsl'][1]}%, {c['hsl'][2]}%)")
+</code></pre>
+
+<p>For background colors, we clamp lightness to either very dark (10-20%) or very light (85-95%) and drop saturation to 15-30%. This ensures the generative elements pop against the background.</p>
+
+<pre><code>def generate_background(base_hue, dark=True):
+    """Generate a subtle background color from the palette's base hue."""
+    hue = (base_hue + random.uniform(-15, 15)) % 360
+    sat = random.uniform(15, 30)
+    lit = random.uniform(8, 18) if dark else random.uniform(88, 96)
+    return hsl_to_rgb(hue, sat, lit)
+</code></pre>
+
+<h2 id="quantum-randomness">6. Quantum Randomness Meets Color Theory</h2>
+
+<p>In the <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> collection, we don't use <code>random.random()</code>. Every random decision comes from measurements on real quantum computers — IBM Quantum's ibm_fez (156 qubits) and Origin Quantum's WK_C180 (180 qubits).</p>
+
+<p>Here's how quantum bits become color palettes:</p>
+
+<pre><code># Simplified from our actual quantum_nft_generator.py
+
+def quantum_bits_to_palette(quantum_hex_seed):
+    """Convert quantum measurement hex string to color palette."""
+    # Parse quantum seed (64 hex chars = 256 bits)
+    seed_int = int(quantum_hex_seed, 16)
+
+    # Extract base hue from first 9 bits (0-511 → mod 360)
+    base_hue = (seed_int >> 247) % 360
+
+    # Extract harmony type from next 3 bits (0-7 → 5 types)
+    harmony_bits = (seed_int >> 244) & 0x7
+    harmony_types = [
+        complementary, analogous, triadic,
+        split_complementary, tetradic
+    ]
+    harmony_fn = harmony_types[harmony_bits % 5]
+
+    # Generate harmony hues
+    hues = harmony_fn(base_hue)
+
+    # Use remaining bits as seed for variations
+    variation_seed = (seed_int >> 200) & 0xFFFFFFFF
+    palette = generate_palette(hues, num_colors=6, seed=variation_seed)
+
+    return palette, harmony_fn.__name__
+</code></pre>
+
+<p>The critical insight: <strong>color theory provides the structure, quantum randomness provides the exploration</strong>. Without color theory, random colors look like noise. Without quantum randomness, generated palettes are predictable. Together, you get harmonious yet genuinely unique color combinations.</p>
+
+<blockquote style="border-left:4px solid #7b2ff7;padding:10px 20px;background:#f5f0ff;">
+<strong>Each of the 100 Quantum Genesis NFTs</strong> has a unique quantum-derived color palette that is mathematically harmonious but physically irreproducible. The specific quantum noise from the exact moment of measurement can never be recreated.
+</blockquote>
+
+<p>The harmony type is recorded in each NFT's metadata as an on-chain attribute, so collectors can filter by "Triadic," "Complementary," etc. on OpenSea.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/88.png" alt="Quantum Genesis NFT #88 — rich tetradic color scheme from IBM Quantum measurements" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h3>Practical Tips for Your Own Projects</h3>
+
+<ul>
+<li><strong>Start with HSL, always.</strong> Even if your rendering library takes RGB, think in HSL first.</li>
+<li><strong>Limit your palette to 4-6 colors</strong> plus background. More than that and compositions get muddy.</li>
+<li><strong>Vary lightness more than saturation.</strong> Tonal contrast (light vs dark) is more impactful than saturation contrast.</li>
+<li><strong>Test against dark and light backgrounds.</strong> Your palette should work on both.</li>
+<li><strong>Use harmony type as metadata.</strong> It's a meaningful, human-readable trait for generative collections.</li>
+</ul>
+
+<div style="background:linear-gradient(135deg,#0a0a2e,#1a0a3e);color:#fff;padding:25px;border-radius:12px;margin-top:30px;text-align:center;">
+<h3 style="color:#00ffcc;margin-top:0;">Quantum Genesis Collection</h3>
+<p>100 NFTs, 5 harmony types, infinite quantum randomness. See color theory in action.</p>
+<p><a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#ff6ec7;color:#fff;padding:12px 30px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:10px;">Explore on OpenSea</a></p>
+<p style="font-size:0.85em;color:#aaa;margin-bottom:0;">Contract: 0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27 | Polygon | ERC-721</p>
+</div>

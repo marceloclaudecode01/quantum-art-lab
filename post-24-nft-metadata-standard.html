@@ -1,0 +1,324 @@
+<!--
+Title: The ERC-721 Metadata Standard: A Complete Developer Reference
+Meta Description: Everything you need to know about ERC-721 metadata: required fields, optional attributes, display types, and how OpenSea renders your NFTs.
+Labels: nft, blockchain, tutorial, deep-dive
+Permalink: erc721-metadata-standard
+-->
+
+<div style="background:#1a1a2e;color:#e0e0ff;padding:20px 25px;border-radius:10px;margin-bottom:30px;">
+<h2 style="color:#00ffcc;margin-top:0;">The ERC-721 Metadata Standard: A Complete Developer Reference</h2>
+<p style="font-size:1.1em;">If your NFT metadata is wrong, OpenSea shows a blank card. Here's the complete guide to getting it right — from required fields to advanced display types.</p>
+</div>
+
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#overview">How ERC-721 Metadata Works</a></li>
+<li><a href="#json-structure">The JSON Structure</a></li>
+<li><a href="#required-fields">Required Fields</a></li>
+<li><a href="#optional-fields">Optional Fields</a></li>
+<li><a href="#attributes">The Attributes Array</a></li>
+<li><a href="#display-types">Display Types Deep Dive</a></li>
+<li><a href="#opensea-specific">OpenSea-Specific Features</a></li>
+<li><a href="#our-metadata">Our Metadata: 9 Attributes in Practice</a></li>
+<li><a href="#hosting">IPFS vs Centralized Hosting</a></li>
+<li><a href="#tokenuri">tokenURI and baseURI Pattern</a></li>
+</ol>
+
+<h2 id="overview">1. How ERC-721 Metadata Works</h2>
+
+<p>An ERC-721 token is just a number (token ID) owned by an address. By itself, it has no image, no name, no description. All that information lives in <strong>metadata</strong> — a JSON file that the smart contract points to via the <code>tokenURI</code> function.</p>
+
+<p>When OpenSea (or any marketplace) displays your NFT, it:</p>
+<ol>
+<li>Calls <code>tokenURI(tokenId)</code> on your contract</li>
+<li>Gets back a URL (usually IPFS)</li>
+<li>Fetches the JSON at that URL</li>
+<li>Reads the fields and renders the NFT card</li>
+</ol>
+
+<p>If any step fails — wrong URL, malformed JSON, missing fields — your NFT appears as a blank card. Getting metadata right is essential.</p>
+
+<h2 id="json-structure">2. The JSON Structure</h2>
+
+<p>Here's a complete example with all major fields:</p>
+
+<pre><code>{
+  "name": "Quantum Genesis #42",
+  "description": "A unique piece of generative art created from measurements on IBM Quantum's ibm_fez processor. The quantum circuit used Hadamard gates and CNOT entanglement to produce genuinely random bits that drive the color palette, geometry, and composition.",
+  "image": "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png",
+  "external_url": "https://opensea.io/collection/quantum-genesis",
+  "background_color": "0a0a2e",
+  "attributes": [
+    {
+      "trait_type": "Quantum Source",
+      "value": "IBM Quantum ibm_fez"
+    },
+    {
+      "trait_type": "Color Harmony",
+      "value": "Triadic"
+    },
+    {
+      "trait_type": "Qubit Count",
+      "display_type": "number",
+      "value": 8
+    },
+    {
+      "trait_type": "Entropy Score",
+      "display_type": "number",
+      "value": 94
+    },
+    {
+      "display_type": "date",
+      "trait_type": "Generation Date",
+      "value": 1710892800
+    }
+  ]
+}</code></pre>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png" alt="Quantum Genesis NFT #42 — rendered from the metadata shown above" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h2 id="required-fields">3. Required Fields</h2>
+
+<p>Technically, the ERC-721 standard only requires <code>tokenURI</code> to return a valid URI. But for marketplaces to render your NFT properly, three fields are effectively required:</p>
+
+<h3>name (string)</h3>
+<p>The name of the individual token. This appears as the title on marketplace cards.</p>
+<pre><code>"name": "Quantum Genesis #42"</code></pre>
+<p>Convention: Collection name + # + token ID. Keep it under 50 characters for clean display.</p>
+
+<h3>description (string)</h3>
+<p>A text description of the token. Supports Markdown on OpenSea. This appears in the "Description" section of the NFT detail page.</p>
+<pre><code>"description": "A unique piece of generative art created from real quantum computer measurements..."</code></pre>
+<p>Tips: Include what makes the piece unique. Mention the process. Keep it under 500 characters for best readability. OpenSea supports basic Markdown (bold, italic, links).</p>
+
+<h3>image (string — URI)</h3>
+<p>URL to the image. Supported formats: PNG, JPG, GIF, SVG, WebP. Maximum recommended size: 40MB (OpenSea limit).</p>
+<pre><code>"image": "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png"</code></pre>
+
+<p>Use the <code>ipfs://</code> protocol prefix — marketplaces resolve this through their own IPFS gateways. Avoid using a specific gateway URL (like <code>https://gateway.pinata.cloud/ipfs/...</code>) because if that gateway goes down, your image breaks.</p>
+
+<blockquote style="border-left:4px solid #00ffcc;padding:10px 20px;background:#f0f8ff;">
+<strong>Important:</strong> The <code>image</code> field is what appears as the NFT thumbnail everywhere — in wallets, marketplaces, social media embeds. Get this right.
+</blockquote>
+
+<h2 id="optional-fields">4. Optional Fields</h2>
+
+<h3>external_url (string — URI)</h3>
+<p>A URL that appears as a clickable link on the NFT's OpenSea page under the token name. Use this to link to your project website or a detailed page about the piece.</p>
+<pre><code>"external_url": "https://yourproject.com/nft/42"</code></pre>
+
+<h3>animation_url (string — URI)</h3>
+<p>For multimedia NFTs. Supports HTML pages, GLB/GLTF 3D models, MP4/WebM video, MP3/WAV audio, and interactive content. If present, this takes priority over <code>image</code> for display, while <code>image</code> becomes the thumbnail.</p>
+<pre><code>"animation_url": "ipfs://Qm.../interactive.html"</code></pre>
+
+<h3>background_color (string — hex without #)</h3>
+<p>A six-character hex color for the background of the NFT card on OpenSea. No # prefix.</p>
+<pre><code>"background_color": "0a0a2e"</code></pre>
+<p>This fills the space around your image if it doesn't perfectly match the card dimensions.</p>
+
+<h2 id="attributes">5. The Attributes Array</h2>
+
+<p>Attributes are the most powerful part of NFT metadata. They define the traits that appear in the "Properties," "Stats," and "Levels" sections on OpenSea. They also power filtering and rarity calculations.</p>
+
+<p>Each attribute is an object with:</p>
+
+<pre><code>{
+  "trait_type": "Color Harmony",   // The trait category
+  "value": "Triadic"               // The trait value
+}</code></pre>
+
+<p>That's it for basic string traits. They appear as rectangular badges under "Properties" on OpenSea. Collectors can filter your collection by these traits.</p>
+
+<h3>Numeric Attributes</h3>
+
+<pre><code>{
+  "trait_type": "Entropy Score",
+  "display_type": "number",
+  "value": 94
+}</code></pre>
+
+<p>Numeric attributes appear under "Stats" with a simple number display. OpenSea automatically calculates the range across your collection.</p>
+
+<h3>Optional: max_value</h3>
+
+<pre><code>{
+  "trait_type": "Entropy Score",
+  "display_type": "number",
+  "value": 94,
+  "max_value": 100
+}</code></pre>
+
+<p>Adding <code>max_value</code> shows a progress bar on OpenSea. Without it, OpenSea infers the max from the highest value in your collection.</p>
+
+<h2 id="display-types">6. Display Types Deep Dive</h2>
+
+<p>OpenSea supports several <code>display_type</code> values that change how attributes render:</p>
+
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;margin:15px 0;">
+<tr style="background:#0a0a2e;color:#00ffcc;">
+<th>display_type</th><th>Renders As</th><th>Value Type</th><th>Section</th>
+</tr>
+<tr><td>(omitted)</td><td>Text badge</td><td>string</td><td>Properties</td></tr>
+<tr><td><code>"number"</code></td><td>Plain number</td><td>integer/float</td><td>Stats</td></tr>
+<tr><td><code>"boost_number"</code></td><td>Number with + prefix</td><td>integer/float</td><td>Boosts</td></tr>
+<tr><td><code>"boost_percentage"</code></td><td>Circular progress + %</td><td>integer (0-100)</td><td>Boosts</td></tr>
+<tr><td><code>"date"</code></td><td>Formatted date</td><td>Unix timestamp</td><td>Properties</td></tr>
+</table>
+
+<h3>boost_number</h3>
+<pre><code>{
+  "display_type": "boost_number",
+  "trait_type": "Quantum Advantage",
+  "value": 12
+}
+// Renders as: "+12" in a circular badge
+</code></pre>
+
+<h3>boost_percentage</h3>
+<pre><code>{
+  "display_type": "boost_percentage",
+  "trait_type": "Randomness Quality",
+  "value": 95
+}
+// Renders as: circular progress bar showing 95%
+</code></pre>
+
+<h3>date</h3>
+<pre><code>{
+  "display_type": "date",
+  "trait_type": "Generation Date",
+  "value": 1710892800
+}
+// Renders as: "March 20, 2024" (human-readable)
+// Value MUST be Unix timestamp (seconds since epoch)
+</code></pre>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/19.png" alt="Quantum Genesis NFT #29 — first IBM Quantum piece in the collection" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h2 id="opensea-specific">7. OpenSea-Specific Features</h2>
+
+<p>OpenSea has introduced additional metadata conventions beyond the basic ERC-721 standard:</p>
+
+<h3>Collection-Level Metadata</h3>
+<p>Set via the OpenSea UI or API — not in individual token metadata. Includes collection name, banner image, description, royalty percentage, and social links.</p>
+
+<h3>Trait Rarity</h3>
+<p>OpenSea automatically calculates rarity based on trait distribution across your collection. If only 5 out of 100 NFTs have "Quantum Source: Origin Quantum WK_C180," that trait shows as "5% have this trait." You don't need to specify rarity — it's computed from the data.</p>
+
+<h3>Refresh Metadata</h3>
+<p>If you update your metadata JSON on IPFS (by re-uploading and updating the tokenURI), you can force OpenSea to re-fetch it by clicking "Refresh metadata" on the NFT page or calling the API.</p>
+
+<h2 id="our-metadata">8. Our Metadata: 9 Attributes in Practice</h2>
+
+<p>Each Quantum Genesis NFT has 9 carefully chosen attributes:</p>
+
+<pre><code>{
+  "name": "Quantum Genesis #42",
+  "description": "Generative art from real quantum computer measurements...",
+  "image": "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png",
+  "external_url": "https://opensea.io/collection/quantum-genesis",
+  "attributes": [
+    { "trait_type": "Quantum Source", "value": "IBM Quantum ibm_fez" },
+    { "trait_type": "Color Harmony", "value": "Triadic" },
+    { "trait_type": "Visual Style", "value": "Orbital" },
+    { "trait_type": "Background Tone", "value": "Dark" },
+    { "trait_type": "Complexity", "value": "High" },
+    { "trait_type": "Qubit Count", "display_type": "number", "value": 8 },
+    { "trait_type": "Entropy Score", "display_type": "number", "value": 94 },
+    { "trait_type": "Gate Depth", "display_type": "number", "value": 12 },
+    { "display_type": "date", "trait_type": "Generation Date", "value": 1710892800 }
+  ]
+}</code></pre>
+
+<p>The string traits (Quantum Source, Color Harmony, Visual Style, Background Tone, Complexity) create filterable categories on OpenSea. The numeric traits (Qubit Count, Entropy Score, Gate Depth) appear as stats. The date trait records when the quantum measurement was taken.</p>
+
+<h3>Why These 9 Attributes?</h3>
+
+<ul>
+<li><strong>Quantum Source</strong> — provenance: which quantum computer generated the data</li>
+<li><strong>Color Harmony</strong> — the palette algorithm used (triadic, complementary, etc.)</li>
+<li><strong>Visual Style</strong> — the geometric pattern type</li>
+<li><strong>Background Tone</strong> — dark or light background</li>
+<li><strong>Complexity</strong> — visual complexity level</li>
+<li><strong>Qubit Count</strong> — technical parameter of the quantum circuit</li>
+<li><strong>Entropy Score</strong> — quality measure of the quantum randomness (0-100)</li>
+<li><strong>Gate Depth</strong> — circuit depth (more gates = more entanglement)</li>
+<li><strong>Generation Date</strong> — exact timestamp for provenance</li>
+</ul>
+
+<h2 id="hosting">9. IPFS vs Centralized Hosting</h2>
+
+<p>Your metadata JSON and images need to be hosted somewhere accessible. Two main options:</p>
+
+<h3>IPFS (Recommended)</h3>
+
+<p>IPFS (InterPlanetary File System) is a decentralized storage network. Content is addressed by hash — the URL is derived from the content itself. If anyone in the world has a copy, it's accessible.</p>
+
+<ul>
+<li><strong>Pros:</strong> Decentralized, content-addressed (tamper-proof), permanent if pinned</li>
+<li><strong>Cons:</strong> Slower initial load, requires pinning service to stay available</li>
+<li><strong>Services:</strong> Pinata (we use this), NFT.Storage, Infura IPFS, Filebase</li>
+</ul>
+
+<p>We use <a href="https://www.pinata.cloud/" target="_blank" rel="noopener">Pinata</a> for IPFS pinning. All 100 art PNGs are in a single IPFS directory, and all 100 metadata JSONs are in another. The directory CID becomes our baseURI.</p>
+
+<h3>Centralized (Not Recommended)</h3>
+
+<p>You could host metadata on any web server (AWS S3, your own domain). But if that server goes down, every NFT in your collection shows a blank card. This defeats the permanence that blockchain promises.</p>
+
+<blockquote style="border-left:4px solid #ff6ec7;padding:10px 20px;background:#fff0f5;">
+<strong>Always use IPFS for NFT metadata and images.</strong> Collectors rightfully distrust centralized metadata — it means the creator can change or delete the art at any time.
+</blockquote>
+
+<h2 id="tokenuri">10. tokenURI and baseURI Pattern</h2>
+
+<p>Your smart contract needs to return the correct metadata URL for each token. Two common patterns:</p>
+
+<h3>Pattern 1: Individual tokenURI</h3>
+<p>Store each token's full URI in the contract. Flexible but expensive (one storage write per mint).</p>
+
+<pre><code>// Solidity
+mapping(uint256 => string) private _tokenURIs;
+
+function tokenURI(uint256 tokenId) public view returns (string memory) {
+    return _tokenURIs[tokenId];
+}
+</code></pre>
+
+<h3>Pattern 2: baseURI + tokenId (Recommended)</h3>
+<p>Store one base URI. Each token's URI is baseURI + tokenId. Much cheaper for large collections.</p>
+
+<pre><code>// Solidity (OpenZeppelin pattern)
+string private _baseTokenURI;
+
+function _baseURI() internal view override returns (string memory) {
+    return _baseTokenURI;
+}
+
+// tokenURI(42) returns: "ipfs://QmBaseHash/42"
+// The JSON file at that IPFS path contains the metadata for token 42
+</code></pre>
+
+<p>This is what we use for Quantum Genesis. Our baseURI points to an IPFS directory containing files named <code>1</code> through <code>100</code> (no extension). Each file is a JSON metadata document.</p>
+
+<p>The IPFS directory structure:</p>
+
+<pre><code>ipfs://QmMetadataCID/
+├── 1       ← JSON metadata for token #1
+├── 2       ← JSON metadata for token #2
+├── ...
+└── 100     ← JSON metadata for token #100
+</code></pre>
+
+<p>And in each JSON, the <code>image</code> field points to the art directory:</p>
+
+<pre><code>"image": "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png"</code></pre>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/60.png" alt="Quantum Genesis NFT #105 — metadata includes 9 on-chain attributes" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<div style="background:linear-gradient(135deg,#0a0a2e,#1a0a3e);color:#fff;padding:25px;border-radius:12px;margin-top:30px;text-align:center;">
+<h3 style="color:#00ffcc;margin-top:0;">Quantum Genesis Collection</h3>
+<p>100 NFTs with rich ERC-721 metadata, 9 attributes each, fully decentralized on IPFS.</p>
+<p><a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#00ffcc;color:#0a0a2e;padding:12px 30px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:10px;">Browse the Collection</a></p>
+<p style="font-size:0.85em;color:#aaa;margin-bottom:0;">Contract: 0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27 | Polygon | ERC-721 | QGEN</p>
+</div>

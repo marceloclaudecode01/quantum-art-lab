@@ -1,0 +1,285 @@
+<!--
+Title: A Visual Guide to Quantum Gates: Hadamard, CNOT, and Beyond
+Meta Description: Understand quantum gates visually — Hadamard, Pauli-X, CNOT, and rotation gates explained with diagrams and Qiskit code.
+Labels: quantum-computing, tutorial, qiskit
+Permalink: quantum-gates-visual-guide
+-->
+
+<div style="background:#0a0a2e;color:#e0e0ff;padding:20px 25px;border-radius:10px;margin-bottom:30px;">
+<h2 style="color:#00ffcc;margin-top:0;">A Visual Guide to Quantum Gates: Hadamard, CNOT, and Beyond</h2>
+<p style="font-size:1.1em;">Every quantum circuit — including the ones that generated our <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="color:#ff6ec7;">Quantum Genesis NFTs</a> — is built from quantum gates. Let's understand each one visually, with runnable Qiskit code.</p>
+</div>
+
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#what-are-gates">What Are Quantum Gates?</a></li>
+<li><a href="#pauli-gates">Pauli Gates: X, Y, Z</a></li>
+<li><a href="#hadamard">The Hadamard Gate: Superposition Creator</a></li>
+<li><a href="#cnot">CNOT: The Entanglement Gate</a></li>
+<li><a href="#rotation">Rotation Gates: Rx, Ry, Rz</a></li>
+<li><a href="#toffoli">Toffoli Gate: 3-Qubit Control</a></li>
+<li><a href="#combining">Combining Gates Into Circuits</a></li>
+<li><a href="#quantum-genesis">How Quantum Genesis Uses These Gates</a></li>
+</ol>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/10.png" alt="Quantum Genesis NFT #10 — generated using Hadamard and CNOT gates on real quantum hardware" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h2 id="what-are-gates">1. What Are Quantum Gates?</h2>
+
+<p>In classical computing, logic gates (AND, OR, NOT) transform bits. Quantum gates do the same for qubits — but with a crucial difference: they operate on probability amplitudes, not just 0s and 1s.</p>
+
+<p>Mathematically, a quantum gate is a <strong>unitary transformation</strong> — a matrix U where U multiplied by its conjugate transpose equals the identity matrix. This guarantees that quantum information is preserved (no information lost, no probabilities exceeding 1).</p>
+
+<p>Visually, think of a qubit's state as a point on a sphere (the Bloch sphere). Each gate rotates that point to a new position. Different gates rotate along different axes by different amounts.</p>
+
+<blockquote style="border-left:4px solid #00ffcc;padding:10px 20px;background:#f0f8ff;">
+<strong>Key insight:</strong> Every quantum computation is just a sequence of rotations on the Bloch sphere, followed by a measurement that collapses the sphere to a definite 0 or 1.
+</blockquote>
+
+<p>Gates are represented in circuit diagrams as boxes or symbols on horizontal lines (wires), where each wire represents one qubit. Time flows left to right.</p>
+
+<h2 id="pauli-gates">2. Pauli Gates: X, Y, Z</h2>
+
+<p>The three Pauli gates are the fundamental single-qubit operations. Each corresponds to a 180-degree rotation around one axis of the Bloch sphere.</p>
+
+<h3>Pauli-X (Bit Flip)</h3>
+
+<p>The X gate is the quantum equivalent of a classical NOT gate. It flips |0⟩ to |1⟩ and |1⟩ to |0⟩. On the Bloch sphere, it's a 180-degree rotation around the X axis.</p>
+
+<pre><code>from qiskit import QuantumCircuit
+
+qc = QuantumCircuit(1)
+qc.x(0)        # Apply X gate to qubit 0
+qc.measure_all()
+print(qc.draw())
+
+#      ┌───┐ ░ ┌─┐
+# q_0: ┤ X ├─░─┤M├
+#      └───┘ ░ └╥┘
+</code></pre>
+
+<p>If the qubit starts in |0⟩, after X it's guaranteed to be |1⟩. Simple and deterministic.</p>
+
+<h3>Pauli-Y (Bit + Phase Flip)</h3>
+
+<p>The Y gate combines a bit flip with a phase flip. It rotates 180 degrees around the Y axis. Less commonly used alone, but essential in many algorithms.</p>
+
+<pre><code>qc = QuantumCircuit(1)
+qc.y(0)        # Apply Y gate
+</code></pre>
+
+<h3>Pauli-Z (Phase Flip)</h3>
+
+<p>The Z gate leaves |0⟩ unchanged but flips the phase of |1⟩ (multiplies by -1). You can't observe this with a single measurement, but it affects interference in larger circuits.</p>
+
+<pre><code>qc = QuantumCircuit(1)
+qc.z(0)        # Apply Z gate — phase flip only
+</code></pre>
+
+<p>Think of Z as flipping the "hidden sign" of a qubit — invisible on its own, but critical when gates interact.</p>
+
+<h2 id="hadamard">3. The Hadamard Gate: Superposition Creator</h2>
+
+<p>The Hadamard gate (H) is arguably the most important single-qubit gate in quantum computing. It puts a qubit into an equal superposition of |0⟩ and |1⟩.</p>
+
+<p>Applied to |0⟩, H produces (|0⟩ + |1⟩)/√2 — meaning a 50/50 chance of measuring 0 or 1. Applied to |1⟩, it produces (|0⟩ - |1⟩)/√2 — still 50/50, but with a phase difference that matters for interference.</p>
+
+<pre><code>from qiskit import QuantumCircuit
+from qiskit_ibm_runtime import SamplerV2 as Sampler
+
+qc = QuantumCircuit(1)
+qc.h(0)        # Hadamard: creates superposition
+qc.measure_all()
+print(qc.draw())
+
+#      ┌───┐ ░ ┌─┐
+# q_0: ┤ H ├─░─┤M├
+#      └───┘ ░ └╥┘
+
+# Running on real hardware gives ~50% |0⟩, ~50% |1⟩
+# But NOT exactly 50/50 — that's real quantum noise!
+</code></pre>
+
+<blockquote style="border-left:4px solid #ff6ec7;padding:10px 20px;background:#fff0f5;">
+<strong>Fun fact:</strong> Applying H twice returns the qubit to its original state. H is its own inverse — it's like a quantum toggle switch.
+</blockquote>
+
+<p>On the Bloch sphere, H is a rotation that takes the "north pole" (|0⟩) to the "equator" — right in between 0 and 1.</p>
+
+<p>The Hadamard gate is the starting point of nearly every quantum algorithm. Without it, qubits behave classically. With it, you unlock superposition — the foundation of quantum parallelism.</p>
+
+<h2 id="cnot">4. CNOT: The Entanglement Gate</h2>
+
+<p>The CNOT (Controlled-NOT) gate is the most important two-qubit gate. It takes a control qubit and a target qubit. If the control is |1⟩, it flips the target. If the control is |0⟩, it does nothing.</p>
+
+<pre><code>qc = QuantumCircuit(2)
+qc.cx(0, 1)    # CNOT: qubit 0 controls, qubit 1 is target
+print(qc.draw())
+
+# q_0: ──■──
+#       ┌─┴─┐
+# q_1: ┤ X ├
+#       └───┘
+</code></pre>
+
+<p>On its own, CNOT isn't that exciting. The magic happens when you combine it with Hadamard:</p>
+
+<pre><code>qc = QuantumCircuit(2)
+qc.h(0)         # Put qubit 0 in superposition
+qc.cx(0, 1)     # Entangle qubit 0 and qubit 1
+qc.measure_all()
+
+# q_0: ┤ H ├──■──
+#             ┌─┴─┐
+# q_1: ──────┤ X ├
+
+# Results: ~50% "00", ~50% "11"
+# NEVER "01" or "10" — they're entangled!
+</code></pre>
+
+<p>This H + CNOT combination creates a <strong>Bell state</strong> — the simplest form of quantum entanglement. The two qubits become correlated: measuring one instantly determines the other, no matter how far apart they are.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/33.png" alt="Quantum Genesis NFT #33 — entanglement patterns visible in the generative art" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h2 id="rotation">5. Rotation Gates: Rx, Ry, Rz</h2>
+
+<p>While Pauli gates are fixed 180-degree rotations, rotation gates let you specify any angle. This gives you fine-grained control over qubit states.</p>
+
+<pre><code>import math
+
+qc = QuantumCircuit(1)
+
+# Rotate by any angle (in radians)
+qc.rx(math.pi / 4, 0)   # Rotate around X axis by 45 degrees
+qc.ry(math.pi / 3, 0)   # Rotate around Y axis by 60 degrees
+qc.rz(math.pi / 2, 0)   # Rotate around Z axis by 90 degrees
+</code></pre>
+
+<p><strong>Rx(θ)</strong> rotates around the X axis by angle θ. At θ=π, it equals the Pauli-X gate.</p>
+
+<p><strong>Ry(θ)</strong> rotates around the Y axis. Useful for preparing specific probability distributions — Ry(π/2) on |0⟩ gives equal superposition like H, but without the phase difference.</p>
+
+<p><strong>Rz(θ)</strong> rotates around the Z axis. A pure phase rotation — it changes the "hidden angle" without affecting measurement probabilities in the standard basis.</p>
+
+<blockquote style="border-left:4px solid #00ffcc;padding:10px 20px;background:#f0f8ff;">
+<strong>Universality:</strong> Any single-qubit gate can be decomposed into a sequence of Rz, Ry, and Rz rotations. Combined with CNOT, you can build ANY quantum circuit. This is called universal gate set.
+</blockquote>
+
+<h2 id="toffoli">6. Toffoli Gate: 3-Qubit Control</h2>
+
+<p>The Toffoli gate (CCX) extends CNOT to three qubits: two controls and one target. The target flips only when BOTH controls are |1⟩. It's the quantum equivalent of a classical AND gate (followed by XOR).</p>
+
+<pre><code>qc = QuantumCircuit(3)
+qc.ccx(0, 1, 2)   # Toffoli: qubits 0,1 control, qubit 2 is target
+print(qc.draw())
+
+# q_0: ──■──
+#         │
+# q_1: ──■──
+#       ┌─┴─┐
+# q_2: ┤ X ├
+#       └───┘
+</code></pre>
+
+<p>The Toffoli gate is important because it's <strong>universal for classical computation</strong> — any classical Boolean circuit can be built from Toffoli gates alone. It's also reversible, making it the bridge between classical and quantum computing.</p>
+
+<p>In practice, Toffoli gates are expensive on real hardware — they decompose into about 6 CNOT gates. So quantum algorithms try to minimize their use.</p>
+
+<h2 id="combining">7. Combining Gates Into Circuits</h2>
+
+<p>A quantum circuit is a sequence of gates applied to a register of qubits, followed by measurements. Here's a complete example that creates a 4-qubit entangled state:</p>
+
+<pre><code>from qiskit import QuantumCircuit
+
+qc = QuantumCircuit(4, 4)
+
+# Step 1: Superposition on all qubits
+for i in range(4):
+    qc.h(i)
+
+# Step 2: Entangle pairs
+qc.cx(0, 1)
+qc.cx(2, 3)
+
+# Step 3: Cross-entangle
+qc.cx(1, 2)
+
+# Step 4: Add some rotation for variety
+qc.rz(0.5, 0)
+qc.ry(0.3, 3)
+
+# Step 5: Measure
+qc.measure(range(4), range(4))
+
+print(qc.draw())
+</code></pre>
+
+<p>The output is a probability distribution over 16 possible states (0000 through 1111). On a real quantum computer, noise and decoherence add additional variation — which is a feature, not a bug, when generating art.</p>
+
+<h3>Gate Order Matters</h3>
+
+<p>Unlike classical logic, the order of quantum gates dramatically affects the outcome. H followed by Z is different from Z followed by H. This is because matrix multiplication is not commutative — the order of rotations on the Bloch sphere matters.</p>
+
+<pre><code># These produce DIFFERENT states:
+qc1 = QuantumCircuit(1)
+qc1.h(0)
+qc1.z(0)    # H then Z
+
+qc2 = QuantumCircuit(1)
+qc2.z(0)
+qc2.h(0)    # Z then H — different result!
+</code></pre>
+
+<h2 id="quantum-genesis">8. How Quantum Genesis Uses These Gates</h2>
+
+<p>For our <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis collection</a>, we designed circuits specifically for maximum entropy — unpredictable, irreproducible randomness:</p>
+
+<pre><code># Simplified version of our NFT generation circuit
+qc = QuantumCircuit(8, 8)
+
+# Hadamard on all 8 qubits — maximum superposition
+for i in range(8):
+    qc.h(i)
+
+# CNOT chain — entangle all qubits
+for i in range(7):
+    qc.cx(i, i + 1)
+
+# Measure all
+qc.measure(range(8), range(8))
+
+# Run on REAL quantum hardware (IBM ibm_fez or Origin WK_C180)
+# Each run produces genuinely random bits
+</code></pre>
+
+<p>The H + CNOT chain pattern ensures that all 8 qubits are entangled in a GHZ-like state. When measured, the quantum noise from real hardware produces bits that are fundamentally unpredictable — not pseudo-random, but physically random from quantum mechanics.</p>
+
+<p>These raw quantum bits become seeds for color palettes, geometry, and composition in each NFT. NFTs #1-18 were generated on the Origin Quantum WK_C180 (180 qubits), and #19-100 on IBM Quantum's ibm_fez and ibm_torino processors.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/55.png" alt="Quantum Genesis NFT #55 — IBM Quantum ibm_fez generated art" style="max-width:100%;border-radius:10px;margin:20px 0;" />
+
+<h3>Why Real Hardware Matters</h3>
+
+<p>A simulator would give you perfect 50/50 distributions from Hadamard gates. Real hardware has noise — gate errors, decoherence, crosstalk between qubits. This noise is genuinely random (quantum mechanical in origin) and makes each execution unique and irreproducible. For art, this is perfect.</p>
+
+<h3>Gate Summary Table</h3>
+
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;margin:20px 0;">
+<tr style="background:#0a0a2e;color:#00ffcc;">
+<th>Gate</th><th>Qubits</th><th>Symbol</th><th>Effect</th><th>Qiskit</th>
+</tr>
+<tr><td>Pauli-X</td><td>1</td><td>X</td><td>Bit flip (NOT)</td><td><code>qc.x(0)</code></td></tr>
+<tr><td>Pauli-Y</td><td>1</td><td>Y</td><td>Bit + phase flip</td><td><code>qc.y(0)</code></td></tr>
+<tr><td>Pauli-Z</td><td>1</td><td>Z</td><td>Phase flip</td><td><code>qc.z(0)</code></td></tr>
+<tr><td>Hadamard</td><td>1</td><td>H</td><td>Superposition</td><td><code>qc.h(0)</code></td></tr>
+<tr><td>CNOT</td><td>2</td><td>CX</td><td>Conditional flip</td><td><code>qc.cx(0,1)</code></td></tr>
+<tr><td>Rx/Ry/Rz</td><td>1</td><td>R</td><td>Arbitrary rotation</td><td><code>qc.rx(θ,0)</code></td></tr>
+<tr><td>Toffoli</td><td>3</td><td>CCX</td><td>Double-controlled flip</td><td><code>qc.ccx(0,1,2)</code></td></tr>
+</table>
+
+<div style="background:linear-gradient(135deg,#0a0a2e,#1a0a3e);color:#fff;padding:25px;border-radius:12px;margin-top:30px;text-align:center;">
+<h3 style="color:#00ffcc;margin-top:0;">Quantum Genesis Collection</h3>
+<p>100 unique NFTs generated from real quantum gates on real quantum hardware. Each one irreproducible.</p>
+<p><a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#00ffcc;color:#0a0a2e;padding:12px 30px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:10px;">View on OpenSea</a></p>
+<p style="font-size:0.85em;color:#aaa;margin-bottom:0;">Contract: 0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27 | Polygon | ERC-721</p>
+</div>
