@@ -1,0 +1,325 @@
+<!--
+Title: Minting 100 NFTs on Polygon for Under $10 in Gas
+Meta Description: How we deployed a custom ERC-721 smart contract and minted 100 NFTs on Polygon for less than $10 in gas fees. Complete tutorial with code.
+Labels: nft, blockchain, tutorial, polygon, python
+Permalink: minting-100-nfts-polygon-under-10-dollars-gas
+-->
+
+<h2>Minting 100 NFTs on Polygon for Under $10 in Gas</h2>
+
+<p>Deploying and minting 100 NFTs on Ethereum mainnet would have cost us $500 or more. On Polygon, we did it for under $10. Here is exactly how, step by step, with all the code.</p>
+
+<div style="background:#f0f4f8;border-left:4px solid #6366f1;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0;">
+<strong>Table of Contents</strong>
+<ol>
+<li><a href="#why-polygon">Why Polygon?</a></li>
+<li><a href="#contract-design">Our Approach: Self-Contained Solidity Contract</a></li>
+<li><a href="#step1">Step 1: Write the Contract</a></li>
+<li><a href="#step2">Step 2: Compile with solcx</a></li>
+<li><a href="#step3">Step 3: Deploy with web3.py</a></li>
+<li><a href="#step4">Step 4: Batch Minting Strategy</a></li>
+<li><a href="#step5">Step 5: Verify on PolygonScan</a></li>
+<li><a href="#gas-analysis">Gas Cost Analysis</a></li>
+<li><a href="#eth-comparison">Polygon vs Ethereum Comparison</a></li>
+</ol>
+</div>
+
+<h2 id="why-polygon">1. Why Polygon?</h2>
+
+<p>When we set out to mint the <strong>Quantum Genesis</strong> collection &mdash; 100 NFTs generated from real quantum computers &mdash; we needed a chain that met three requirements:</p>
+
+<ul>
+<li><strong>Low gas fees</strong>: We wanted minting costs to be negligible so the art and provenance could be the focus, not the transaction fees.</li>
+<li><strong>Ethereum compatibility</strong>: Full EVM support means the same Solidity contract, the same tools (web3.py, ethers.js), and the same developer experience as Ethereum mainnet.</li>
+<li><strong>OpenSea support</strong>: Polygon is a first-class citizen on OpenSea. Collections appear instantly, and buyers can purchase with MATIC or bridged ETH without extra friction.</li>
+</ul>
+
+<p>Polygon (chain ID 137) checked every box. Gas fees are measured in fractions of a cent per transaction, and finality is fast &mdash; typically under 5 seconds.</p>
+
+<h2 id="contract-design">2. Our Approach: Self-Contained Solidity Contract</h2>
+
+<p>Most NFT tutorials start with "import OpenZeppelin." We went a different direction. Our ERC-721 contract is <strong>entirely self-contained</strong> &mdash; zero external dependencies.</p>
+
+<p>Why?</p>
+<ul>
+<li><strong>Smaller bytecode</strong>: No unused code from a library. Our contract compiles to exactly what we need.</li>
+<li><strong>No dependency risk</strong>: No supply-chain concerns. Every line of code is ours to audit.</li>
+<li><strong>Educational value</strong>: Building ERC-721 from scratch teaches you what the standard actually requires.</li>
+</ul>
+
+<p>The contract implements:</p>
+<ul>
+<li><strong>ERC-721</strong> &mdash; the NFT standard (balanceOf, ownerOf, transferFrom, approve, etc.)</li>
+<li><strong>ERC-721 Enumerable</strong> &mdash; on-chain token enumeration (totalSupply, tokenByIndex, tokenOfOwnerByIndex)</li>
+<li><strong>EIP-2981</strong> &mdash; royalty info (5% royalties on secondary sales)</li>
+<li><strong>Batch minting</strong> &mdash; mint multiple tokens in a single transaction</li>
+<li><strong>Custom errors</strong> &mdash; gas-efficient error handling instead of require strings</li>
+</ul>
+
+<h2 id="step1">3. Step 1: Write the Contract</h2>
+
+<p>Here are the key parts of our Solidity contract. The symbol is <code>QGEN</code> with a max supply of 100.</p>
+
+<h3>Constructor</h3>
+
+<pre><code class="language-solidity">// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract QuantumGenesisNFT {
+    string public name = "Quantum Genesis";
+    string public symbol = "QGEN";
+    uint256 public constant MAX_SUPPLY = 100;
+    uint96 public constant ROYALTY_BPS = 500; // 5%
+
+    address public owner;
+    string private _baseTokenURI;
+    uint256 private _tokenIdCounter;
+
+    // Custom errors (cheaper than require strings)
+    error NotOwner();
+    error MaxSupplyReached();
+    error InvalidBatchSize();
+    error ZeroAddress();
+
+    constructor() {
+        owner = msg.sender;
+    }
+}</code></pre>
+
+<h3>Mint Function</h3>
+
+<pre><code class="language-solidity">function mint(address to) external returns (uint256) {
+    if (msg.sender != owner) revert NotOwner();
+    if (_tokenIdCounter >= MAX_SUPPLY) revert MaxSupplyReached();
+    if (to == address(0)) revert ZeroAddress();
+
+    uint256 tokenId = ++_tokenIdCounter;
+    _safeMint(to, tokenId);
+    return tokenId;
+}</code></pre>
+
+<h3>Batch Mint</h3>
+
+<pre><code class="language-solidity">function batchMint(address to, uint256 count) external returns (uint256[] memory) {
+    if (msg.sender != owner) revert NotOwner();
+    if (count == 0 || count > 50) revert InvalidBatchSize();
+    if (_tokenIdCounter + count > MAX_SUPPLY) revert MaxSupplyReached();
+
+    uint256[] memory tokenIds = new uint256[](count);
+    for (uint256 i = 0; i < count; i++) {
+        uint256 tokenId = ++_tokenIdCounter;
+        _safeMint(to, tokenId);
+        tokenIds[i] = tokenId;
+    }
+    return tokenIds;
+}
+</code></pre>
+
+<h3>EIP-2981 Royalties</h3>
+
+<pre><code class="language-solidity">function royaltyInfo(uint256, uint256 salePrice)
+    external view returns (address receiver, uint256 royaltyAmount)
+{
+    return (owner, (salePrice * ROYALTY_BPS) / 10000);
+}</code></pre>
+
+<blockquote>
+<strong>Key takeaway:</strong> Custom errors like <code>revert NotOwner()</code> cost significantly less gas than <code>require(msg.sender == owner, "Not the owner")</code>. The string in a require statement is stored in the contract bytecode and costs gas to deploy and execute.
+</blockquote>
+
+<h2 id="step2">4. Step 2: Compile with solcx (Python)</h2>
+
+<p>We used <code>py-solc-x</code> to compile the contract from Python. This keeps the entire pipeline &mdash; compile, deploy, mint &mdash; in a single language.</p>
+
+<pre><code class="language-python"># compile_contract.py
+import solcx
+from pathlib import Path
+
+# Install the Solidity compiler version
+solcx.install_solc("0.8.20")
+
+# Read the contract source
+source = Path("nft-contracts/QuantumGenesisNFT.sol").read_text()
+
+# Compile
+compiled = solcx.compile_source(
+    source,
+    output_values=["abi", "bin"],
+    solc_version="0.8.20"
+)
+
+# Extract ABI and bytecode
+contract_id, contract_interface = compiled.popitem()
+abi = contract_interface["abi"]
+bytecode = contract_interface["bin"]
+
+# Save for deployment
+import json
+Path("nft-output/abi.json").write_text(json.dumps(abi, indent=2))
+Path("nft-output/bytecode.txt").write_text(bytecode)
+
+print(f"Compiled. Bytecode size: {len(bytecode) // 2} bytes")
+</code></pre>
+
+<p>The compilation is fast &mdash; under 2 seconds. The output is an ABI (the contract's interface definition) and the bytecode (what gets deployed to the blockchain).</p>
+
+<h2 id="step3">5. Step 3: Deploy with web3.py</h2>
+
+<p>Deployment uses <code>web3.py</code> to connect to Polygon's RPC, build the deployment transaction, sign it, and broadcast it.</p>
+
+<pre><code class="language-python"># deploy_and_mint.py (deployment section)
+from web3 import Web3
+import json, os
+
+# Connect to Polygon
+w3 = Web3(Web3.HTTPProvider("https://polygon-rpc.com"))
+assert w3.is_connected(), "Failed to connect to Polygon"
+
+# Load compiled contract
+abi = json.loads(open("nft-output/abi.json").read())
+bytecode = open("nft-output/bytecode.txt").read()
+
+# Account setup
+private_key = os.environ["PRIVATE_KEY"]
+account = w3.eth.account.from_key(private_key)
+
+# Build deployment transaction
+contract = w3.eth.contract(abi=abi, bytecode=bytecode)
+tx = contract.constructor().build_transaction({
+    "from": account.address,
+    "nonce": w3.eth.get_transaction_count(account.address),
+    "gasPrice": w3.eth.gas_price,
+    "chainId": 137
+})
+
+# Sign and send
+signed = account.sign_transaction(tx)
+tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+contract_address = receipt.contractAddress
+print(f"Deployed at: {contract_address}")
+</code></pre>
+
+<p>Our contract deployed to: <code><a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener">0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27</a></code></p>
+
+<p>After deployment, we set the <code>baseURI</code> to point to our IPFS metadata folder:</p>
+
+<pre><code class="language-python"># Set base URI to IPFS metadata CID
+base_uri = "ipfs://bafybeif7z767txkebwz7iqlgkvikvhxciuxt2kxenmjad4bbzx4rfioyc4/metadata/"
+tx = contract.functions.setBaseTokenURI(base_uri).build_transaction({
+    "from": account.address,
+    "nonce": w3.eth.get_transaction_count(account.address),
+    "gasPrice": w3.eth.gas_price,
+    "chainId": 137
+})
+signed = account.sign_transaction(tx)
+w3.eth.send_raw_transaction(signed.raw_transaction)
+</code></pre>
+
+<h2 id="step4">6. Step 4: Batch Minting Strategy</h2>
+
+<p>We minted in two phases:</p>
+
+<h3>Phase 1: Individual Mints (#1 through #18)</h3>
+
+<p>The first 18 NFTs were minted one at a time. This was our initial testing phase &mdash; verifying that metadata resolved correctly on OpenSea, that images rendered, and that royalty info was picked up.</p>
+
+<h3>Phase 2: Batch Mints (#19 through #100)</h3>
+
+<p>Once everything was validated, we switched to batch minting for the remaining 82 tokens. Five transactions covered all of them:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+<thead>
+<tr style="background:#f1f5f9;"><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Batch</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Tokens</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">TX Hash (prefix)</th></tr>
+</thead>
+<tbody>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">1</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">#19 &ndash; #38 (20)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;"><code>1c8222...</code></td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">2</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">#39 &ndash; #58 (20)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;"><code>94cced...</code></td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">3</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">#59 &ndash; #72 (14)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;"><code>0b52b2...</code></td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">4</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">#73 &ndash; #86 (14)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;"><code>2c0726...</code></td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">5</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">#87 &ndash; #100 (14)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;"><code>e402ec...</code></td></tr>
+</tbody>
+</table>
+
+<pre><code class="language-python"># Batch minting example
+def batch_mint(contract, w3, account, to_address, count):
+    tx = contract.functions.batchMint(to_address, count).build_transaction({
+        "from": account.address,
+        "nonce": w3.eth.get_transaction_count(account.address),
+        "gasPrice": w3.eth.gas_price,
+        "chainId": 137
+    })
+    signed = account.sign_transaction(tx)
+    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"Minted {count} tokens. Gas used: {receipt.gasUsed}")
+    return receipt
+
+# Mint remaining 82 in batches
+wallet = "0xa198032b224f6087cE83B8b499921AD64A5D2e00"
+for batch_size in [20, 20, 14, 14, 14]:
+    batch_mint(contract, w3, account, wallet, batch_size)
+</code></pre>
+
+<blockquote>
+<strong>Why not mint all 82 at once?</strong> Polygon has a block gas limit. Minting 50+ tokens in a single transaction can exceed it. Batches of 14&ndash;20 kept us safely within limits while still being far more efficient than individual mints.
+</blockquote>
+
+<h2 id="step5">7. Step 5: Verify on PolygonScan</h2>
+
+<p>After deployment, we verified the contract source on PolygonScan. This lets anyone read the code and confirm that the contract does what it claims. Verified contracts also get a green checkmark on PolygonScan and enable direct interaction through the "Read Contract" and "Write Contract" tabs.</p>
+
+<p>You can view our verified contract at:<br>
+<a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener">polygonscan.com/address/0x488f...1a27</a></p>
+
+<h2 id="gas-analysis">8. Gas Cost Analysis</h2>
+
+<p>Here is the real cost breakdown for minting 100 NFTs on Polygon:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+<thead>
+<tr style="background:#f1f5f9;"><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Operation</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Transactions</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Approx. Cost (MATIC)</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Approx. Cost (USD)</th></tr>
+</thead>
+<tbody>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">Contract deployment</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">1</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~0.05</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~$0.03</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">Set baseURI</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">1</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~0.001</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">&lt;$0.01</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">Individual mints (#1-18)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">18</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~0.09</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~$0.05</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">Batch mints (#19-100)</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">5</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~0.15</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~$0.09</td></tr>
+<tr style="font-weight:bold;background:#f0fdf4;"><td style="padding:8px 12px;border:1px solid #e2e8f0;">Total</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">25</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~0.3 MATIC</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">Well under $1</td></tr>
+</tbody>
+</table>
+
+<p>Yes, you read that correctly. The total gas cost for deploying a smart contract and minting 100 NFTs was <strong>well under $1 on Polygon</strong>. Even accounting for network congestion spikes, you would struggle to spend more than $10.</p>
+
+<h2 id="eth-comparison">9. Polygon vs Ethereum: The Gas Reality</h2>
+
+<p>To put this in perspective:</p>
+
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+<thead>
+<tr style="background:#f1f5f9;"><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Operation</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Polygon</th><th style="padding:8px 12px;border:1px solid #e2e8f0;text-align:left;">Ethereum Mainnet</th></tr>
+</thead>
+<tbody>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">Deploy contract</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">~$0.03</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">$50 &ndash; $200</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">Single mint</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">&lt;$0.01</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">$3 &ndash; $15</td></tr>
+<tr><td style="padding:8px 12px;border:1px solid #e2e8f0;">100 mints total</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">&lt;$1</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">$300 &ndash; $1500</td></tr>
+</tbody>
+</table>
+
+<p>For an art project where the value proposition is quantum-generated provenance &mdash; not speculative floor prices &mdash; spending hundreds of dollars on gas makes no sense. Polygon let us focus our budget on what actually matters: IPFS pinning, quantum computer access, and the art itself.</p>
+
+<blockquote>
+<strong>The bottom line:</strong> Polygon is not a "lesser" chain. It is a pragmatic choice for any NFT project where gas costs should not be the main expense. Every MATIC we saved on gas was money we could invest in real quantum computing time.
+</blockquote>
+
+<h2>What's Next</h2>
+
+<p>With all 100 tokens minted on-chain, the next piece of the puzzle was metadata and IPFS storage. How do you structure NFT metadata so that quantum provenance is verifiable and permanent? That is the subject of <strong>Post 8: IPFS, Metadata, and Immutable Quantum Provenance</strong>.</p>
+
+<div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:24px 28px;border-radius:12px;margin:32px 0;text-align:center;">
+<h3 style="color:#fff;margin-top:0;">Explore Quantum Genesis</h3>
+<p style="margin:8px 0 16px;">100 NFTs born from real quantum computers. Every token has on-chain proof of quantum origin.</p>
+<a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener" style="display:inline-block;background:#fff;color:#6366f1;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:4px;">View Contract on PolygonScan</a>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#fff;color:#6366f1;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:4px;">View on OpenSea</a>
+</div>

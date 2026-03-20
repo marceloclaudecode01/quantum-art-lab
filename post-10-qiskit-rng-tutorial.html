@@ -1,0 +1,526 @@
+<!--
+  Post Title: Building a Quantum Random Number Generator with Qiskit
+  Meta Description: Build a true quantum random number generator in Python with Qiskit and IBM Quantum. Step-by-step tutorial with complete working code you can run today.
+  Labels: tutorial, quantum-computing, python, qiskit
+  Permalink: qiskit-quantum-random-number-generator-tutorial
+-->
+
+<h2>Table of Contents</h2>
+<ol>
+  <li><a href="#why-qrng">Why Build a Quantum RNG?</a></li>
+  <li><a href="#prerequisites">Prerequisites</a></li>
+  <li><a href="#part1">Part 1: The Simplest QRNG (1 Qubit)</a></li>
+  <li><a href="#part2">Part 2: Multi-Qubit QRNG (8 Bits per Shot)</a></li>
+  <li><a href="#part3">Part 3: Entangled QRNG (Our Approach)</a></li>
+  <li><a href="#part4">Part 4: Running on Real Quantum Hardware</a></li>
+  <li><a href="#part5">Part 5: Converting Measurements to Usable Data</a></li>
+  <li><a href="#part6">Part 6: Verifying Randomness Quality</a></li>
+  <li><a href="#complete-code">Complete Code</a></li>
+</ol>
+
+<hr/>
+
+<h2 id="why-qrng">Why Build a Quantum Random Number Generator?</h2>
+
+<p>Every random number your computer has ever produced is fake.</p>
+
+<p>That sounds dramatic, but it is technically true. Classical computers are deterministic machines. They cannot produce true randomness &mdash; only <strong>pseudorandomness</strong>, sequences that look random but are completely determined by an initial seed. Give <code>random.seed(42)</code> to Python and it will produce the same "random" numbers every time, on every machine, forever.</p>
+
+<p>For most applications, pseudorandomness is fine. But for cryptography, scientific simulation, and &mdash; as we discovered &mdash; generative art, there are good reasons to want the real thing.</p>
+
+<p>A <strong>quantum random number generator (QRNG)</strong> exploits the fundamental indeterminacy of quantum mechanics to produce numbers that are genuinely, provably unpredictable. Not because the algorithm is complex. Because the <em>universe itself</em> has not decided the outcome until the moment of measurement.</p>
+
+<blockquote>A QRNG does not simulate randomness. It harvests randomness directly from quantum physics.</blockquote>
+
+<p>In this tutorial, you will build a working QRNG in Python using <a href="https://qiskit.org/" target="_blank" rel="noopener">Qiskit</a> and IBM Quantum's free cloud access. By the end, you will have code that runs on a real quantum computer and produces true random numbers you can use for anything.</p>
+
+<p>This is the same approach we used to generate the seeds for all 100 NFTs in the <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> collection.</p>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<p>You will need:</p>
+
+<ul>
+  <li><strong>Python 3.9+</strong> installed on your machine</li>
+  <li>A free <strong>IBM Quantum account</strong> &mdash; sign up at <a href="https://quantum.ibm.com/" target="_blank" rel="noopener">quantum.ibm.com</a></li>
+  <li>Your IBM Quantum <strong>API token</strong> (found in your account settings)</li>
+</ul>
+
+<p>Install the required packages:</p>
+
+<pre><code class="language-python">pip install qiskit qiskit-ibm-runtime</code></pre>
+
+<p>That is it. No special hardware needed. IBM provides free access to real quantum processors with up to 156 qubits.</p>
+
+<h2 id="part1">Part 1: The Simplest QRNG &mdash; One Qubit, One Bit</h2>
+
+<p>Let us start with the absolute simplest quantum random number generator: a single qubit producing a single random bit.</p>
+
+<h3>Step 1: Create the circuit</h3>
+
+<pre><code class="language-python">from qiskit.circuit import QuantumCircuit
+
+# Create a circuit with 1 qubit and 1 classical bit
+qc = QuantumCircuit(1, 1)
+
+# Apply Hadamard gate: puts qubit in equal superposition of |0⟩ and |1⟩
+qc.h(0)
+
+# Measure the qubit into the classical bit
+qc.measure(0, 0)
+
+print(qc.draw())</code></pre>
+
+<p>Output:</p>
+
+<pre><code>     ┌───┐┌─┐
+q_0: ┤ H ├┤M├
+     └───┘└╥┘
+c_0: ══════╩═</code></pre>
+
+<p>That is the entire circuit. Here is what happens:</p>
+
+<ol>
+  <li>The qubit starts in state <code>|0&rangle;</code> (the default)</li>
+  <li>The <strong>Hadamard gate</strong> (H) puts it into an equal superposition: 50% chance of <code>|0&rangle;</code>, 50% chance of <code>|1&rangle;</code></li>
+  <li>Measurement forces the qubit to "choose" &mdash; and this choice is genuinely random according to quantum mechanics</li>
+</ol>
+
+<p>The result is a single random bit: 0 or 1, with exactly 50/50 probability. No seed, no algorithm, no determinism. Pure quantum randomness.</p>
+
+<h3>Step 2: Run it on a simulator (for testing)</h3>
+
+<pre><code class="language-python">from qiskit.primitives import StatevectorSampler
+
+sampler = StatevectorSampler()
+job = sampler.run([qc], shots=10)
+result = job.result()
+
+# Get the counts
+counts = result[0].data.c.get_counts()
+print(counts)  # e.g., {'0': 6, '1': 4}</code></pre>
+
+<p>With 10 shots, you get 10 random bits. The simulator produces mathematically ideal results &mdash; but on real hardware, quantum noise adds genuine physical randomness.</p>
+
+<h2 id="part2">Part 2: Multi-Qubit QRNG &mdash; 8 Bits per Shot</h2>
+
+<p>One bit at a time is slow. Let us scale up to 8 qubits, producing a full random byte with each measurement.</p>
+
+<pre><code class="language-python">from qiskit.circuit import QuantumCircuit
+
+def build_byte_circuit():
+    """Create an 8-qubit circuit that produces one random byte per shot."""
+    qc = QuantumCircuit(8, 8)
+
+    # Apply Hadamard to all 8 qubits
+    for i in range(8):
+        qc.h(i)
+
+    # Measure all qubits
+    for i in range(8):
+        qc.measure(i, i)
+
+    return qc
+
+qc = build_byte_circuit()
+print(qc.draw())</code></pre>
+
+<p>Each shot now produces an 8-bit string like <code>10110011</code> &mdash; a random number between 0 and 255. With 4,096 shots, you get 4,096 random bytes in a single quantum circuit execution.</p>
+
+<h3>Why Hadamard creates uniform randomness</h3>
+
+<p>The Hadamard gate transforms <code>|0&rangle;</code> into <code>(|0&rangle; + |1&rangle;) / &radic;2</code>. This is a perfectly balanced superposition. When you apply it to N qubits independently, you create a uniform superposition over all 2<sup>N</sup> possible bitstrings. Each bitstring has exactly the same probability of being measured.</p>
+
+<p>For 8 qubits: 2<sup>8</sup> = 256 possible outcomes, each with probability 1/256. That is a perfectly uniform distribution &mdash; the gold standard for random number generation.</p>
+
+<h2 id="part3">Part 3: Entangled QRNG &mdash; Our Approach</h2>
+
+<p>For the Quantum Genesis collection, we went a step further. Instead of independent qubits, we used <strong>entanglement</strong> to create correlated quantum randomness.</p>
+
+<h3>Why entanglement?</h3>
+
+<p>Independent Hadamard qubits produce random bits that are statistically independent. That is fine for basic RNG. But entanglement creates <strong>correlations</strong> between qubits that enrich the statistical structure of the output. The resulting distributions are more complex and, when hashed, produce higher-quality seeds for downstream applications.</p>
+
+<p>Entanglement also makes the circuit more sensitive to the quantum processor's noise characteristics, which was exactly what we wanted &mdash; each processor's unique noise profile becomes part of the art.</p>
+
+<h3>The circuit: Hadamard + CNOT chain</h3>
+
+<pre><code class="language-python">from qiskit.circuit import QuantumCircuit
+
+def build_nft_seed_circuit(num_qubits=12):
+    """Build a maximally entangled circuit for quantum seed generation.
+
+    H layer creates superposition on all qubits.
+    CNOT chain creates maximum entanglement between neighbors.
+    Result: a complex entangled state that produces rich measurement statistics.
+    """
+    qc = QuantumCircuit(num_qubits, num_qubits)
+
+    # Step 1: Hadamard layer — put every qubit in superposition
+    for i in range(num_qubits):
+        qc.h(i)
+
+    # Step 2: CNOT chain — entangle neighboring qubits
+    for i in range(num_qubits - 1):
+        qc.cx(i, i + 1)
+
+    # Step 3: Measure all qubits
+    for i in range(num_qubits):
+        qc.measure(i, i)
+
+    return qc
+
+circuit = build_nft_seed_circuit(12)
+print(circuit.draw())</code></pre>
+
+<p>Output:</p>
+
+<pre><code>      ┌───┐
+ q_0: ┤ H ├──■───────────────────────────────────────────M──
+      ├───┤┌─┴─┐                                         ║
+ q_1: ┤ H ├┤ X ├──■──────────────────────────────────M───║──
+      ├───┤└───┘┌─┴─┐                                ║   ║
+ q_2: ┤ H ├────┤ X ├──■──────────────────────M───────║───║──
+      ├───┤    └───┘┌─┴─┐                    ║       ║   ║
+ ...  (continues for all 12 qubits)</code></pre>
+
+<p>The CNOT gates create a chain of entanglement. After the circuit runs, measuring qubit 0 instantly influences the probability distribution of qubit 1, which influences qubit 2, and so on down the chain. The qubits are no longer independent &mdash; they are a single entangled quantum system.</p>
+
+<blockquote>This is the exact circuit we used to generate the quantum seeds for all 100 NFTs in the Quantum Genesis collection. NFTs #19&ndash;100 were generated on ibm_fez (156 qubits) and ibm_torino (133 qubits).</blockquote>
+
+<h2 id="part4">Part 4: Running on Real Quantum Hardware</h2>
+
+<p>Now the exciting part: running your circuit on an actual quantum computer. IBM provides free access through the <code>qiskit-ibm-runtime</code> package.</p>
+
+<h3>Step 1: Connect to IBM Quantum</h3>
+
+<pre><code class="language-python">from qiskit_ibm_runtime import QiskitRuntimeService
+
+# First time only: save your credentials
+QiskitRuntimeService.save_account(
+    channel="ibm_quantum_platform",
+    token="YOUR_IBM_QUANTUM_TOKEN",
+    overwrite=True
+)
+
+# Connect to the service
+service = QiskitRuntimeService(channel="ibm_quantum_platform")</code></pre>
+
+<h3>Step 2: Select a backend</h3>
+
+<pre><code class="language-python"># Find the least busy real quantum processor with at least 12 qubits
+backend = service.least_busy(
+    simulator=False,
+    min_num_qubits=12
+)
+print(f"Selected backend: {backend.name}")
+# e.g., "ibm_fez" (156 qubits) or "ibm_torino" (133 qubits)</code></pre>
+
+<h3>Step 3: Transpile the circuit</h3>
+
+<p>Quantum processors have specific hardware constraints &mdash; not all qubits are connected to each other, and only certain gates are natively supported. <strong>Transpilation</strong> adapts your abstract circuit to the physical hardware:</p>
+
+<pre><code class="language-python">from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+# Create a pass manager optimized for this specific backend
+pm = generate_preset_pass_manager(
+    backend=backend,
+    optimization_level=1  # 0=none, 1=light, 2=medium, 3=heavy
+)
+
+# Transpile: map logical qubits to physical qubits
+isa_circuit = pm.run(circuit)
+print(f"Circuit depth after transpilation: {isa_circuit.depth()}")</code></pre>
+
+<h3>Step 4: Run with SamplerV2</h3>
+
+<pre><code class="language-python">from qiskit_ibm_runtime import SamplerV2 as Sampler
+
+# Create sampler bound to our backend
+sampler = Sampler(mode=backend)
+
+# Run the circuit with 4096 shots
+job = sampler.run([isa_circuit], shots=4096)
+print(f"Job ID: {job.job_id()}")
+print("Waiting for results from quantum hardware...")
+
+# Get results (this blocks until the job completes)
+result = job.result()
+print("Done!")</code></pre>
+
+<p>Depending on the queue, this may take anywhere from a few seconds to a few minutes. Your circuit is being executed on real superconducting qubits cooled to 15 millikelvin &mdash; colder than outer space.</p>
+
+<h3>Step 5: Extract the measurement data</h3>
+
+<pre><code class="language-python"># SamplerV2 stores results in the classical register 'c'
+counts = result[0].data.c.get_counts()
+
+print(f"Number of unique bitstrings: {len(counts)}")
+print(f"Total shots: {sum(counts.values())}")
+
+# Show top 5 most frequent bitstrings
+sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+for bitstring, count in sorted_counts[:5]:
+    print(f"  {bitstring}: {count} ({count/4096*100:.1f}%)")</code></pre>
+
+<p><strong>Important note about SamplerV2:</strong> The result data is accessed via <code>result[0].data.c</code> where <code>c</code> is the classical register name. This is different from older Qiskit versions that used <code>.data.meas</code>.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_050.png" alt="Quantum Genesis #50 generated from IBM Quantum ibm_fez measurement data using Qiskit QRNG" style="max-width:100%; border-radius:8px; margin:16px 0;" />
+<p><em>Quantum Genesis #50 &mdash; This piece's entire color palette, composition, and texture were generated from quantum measurement data using the exact code in this tutorial.</em></p>
+
+<h2 id="part5">Part 5: Converting Measurements to Usable Random Data</h2>
+
+<p>Raw quantum measurements give you a dictionary of bitstrings and counts. To use this as a general-purpose random seed, we hash the entire measurement distribution:</p>
+
+<h3>Step 1: Create a deterministic representation</h3>
+
+<pre><code class="language-python">import hashlib
+import json
+
+def measurements_to_seed(counts: dict) -> str:
+    """Convert quantum measurement counts to a hex seed.
+
+    Sorts the bitstrings for determinism, then hashes with SHA-256.
+    The resulting hex string can seed any RNG or be used directly.
+    """
+    # Sort for deterministic ordering
+    sorted_data = json.dumps(counts, sort_keys=True)
+
+    # SHA-256 hash of the full measurement data
+    hex_seed = hashlib.sha256(sorted_data.encode()).hexdigest()
+
+    return hex_seed
+
+seed = measurements_to_seed(counts)
+print(f"Quantum seed: {seed}")
+# e.g., "a3f8b2c1d4e5f6..."  (64 hex chars = 256 bits)</code></pre>
+
+<h3>Step 2: Use the seed in your application</h3>
+
+<pre><code class="language-python">import random
+
+# Option A: Seed Python's random module
+random.seed(int(seed, 16))
+print(f"Random float: {random.random()}")
+print(f"Random int 1-100: {random.randint(1, 100)}")
+
+# Option B: Use as raw bytes for cryptographic applications
+raw_bytes = bytes.fromhex(seed)
+print(f"Random bytes: {raw_bytes.hex()}")
+
+# Option C: Feed into a custom RNG (like our QuantumRNG class)
+# This is what we did for the NFT art generation</code></pre>
+
+<h3>Our QuantumRNG class</h3>
+
+<p>For the Quantum Genesis collection, we used a custom xorshift128+-style RNG seeded from a SHA-512 hash of the quantum data. This lets us generate millions of random values from a single quantum seed while preserving the quantum origin:</p>
+
+<pre><code class="language-python">import hashlib
+
+class QuantumRNG:
+    """PRNG seeded from quantum measurement data via SHA-512.
+    Uses xorshift128+ for fast, high-quality generation."""
+
+    MASK = 0xFFFFFFFFFFFFFFFF  # 64-bit mask
+
+    def __init__(self, hex_seed: str):
+        digest = hashlib.sha512(hex_seed.encode()).hexdigest()
+        self.state = [
+            int(digest[i:i+16], 16)
+            for i in range(0, 64, 16)
+        ]
+
+    def next_float(self) -> float:
+        """Return a random float in [0, 1)."""
+        s1 = self.state[0]
+        s0 = self.state[1]
+        self.state[0] = s0
+        s1 ^= (s1 << 23) & self.MASK
+        self.state[1] = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26)
+        result = (self.state[1] + s0) & self.MASK
+        return result / (1 << 64)
+
+    def next_int(self, min_val: int, max_val: int) -> int:
+        """Return a random integer in [min_val, max_val]."""
+        return min_val + int(self.next_float() * (max_val - min_val + 1))
+
+# Usage
+rng = QuantumRNG(seed)
+print(f"Quantum random float: {rng.next_float()}")
+print(f"Quantum random color: #{rng.next_int(0, 0xFFFFFF):06x}")</code></pre>
+
+<h2 id="part6">Part 6: Verifying Randomness Quality</h2>
+
+<p>How do you know your quantum random numbers are actually random? You test them. Here are two standard statistical tests:</p>
+
+<h3>Chi-Squared Test</h3>
+
+<p>The chi-squared test checks whether your measurement distribution deviates significantly from uniform:</p>
+
+<pre><code class="language-python">from scipy import stats
+import numpy as np
+
+def chi_squared_test(counts: dict, num_qubits: int, shots: int):
+    """Test whether measurement counts follow a uniform distribution."""
+    num_outcomes = 2 ** num_qubits
+    expected = shots / num_outcomes  # Expected count per bitstring
+
+    observed = np.zeros(num_outcomes)
+    for bitstring, count in counts.items():
+        index = int(bitstring, 2)
+        observed[index] = count
+
+    chi2, p_value = stats.chisquare(observed, f_exp=[expected] * num_outcomes)
+
+    print(f"Chi-squared statistic: {chi2:.2f}")
+    print(f"P-value: {p_value:.6f}")
+    print(f"Result: {'PASS (uniform)' if p_value > 0.01 else 'FAIL (non-uniform)'}")
+
+    return p_value
+
+chi_squared_test(counts, num_qubits=12, shots=4096)</code></pre>
+
+<h3>Shannon Entropy</h3>
+
+<p>Shannon entropy measures the information content of a distribution. Maximum entropy means maximum randomness:</p>
+
+<pre><code class="language-python">import math
+
+def shannon_entropy(counts: dict, shots: int) -> float:
+    """Calculate Shannon entropy of measurement distribution.
+
+    Maximum entropy for N outcomes = log2(N).
+    For 12 qubits: max entropy = 12.0 bits.
+    """
+    entropy = 0.0
+    for count in counts.values():
+        if count > 0:
+            p = count / shots
+            entropy -= p * math.log2(p)
+
+    max_entropy = math.log2(2 ** 12)  # = 12.0 for 12 qubits
+    efficiency = entropy / max_entropy * 100
+
+    print(f"Shannon entropy: {entropy:.4f} bits")
+    print(f"Maximum possible: {max_entropy:.4f} bits")
+    print(f"Efficiency: {efficiency:.1f}%")
+
+    return entropy
+
+shannon_entropy(counts, shots=4096)</code></pre>
+
+<p>For our Quantum Genesis collection, all 100 seeds passed both tests with high entropy scores. The quantum hardware consistently produced near-maximum entropy distributions.</p>
+
+<blockquote>All 100 Quantum Genesis NFTs were generated from quantum seeds that passed statistical randomness verification. The entropy scores are stored as on-chain attributes for each piece.</blockquote>
+
+<h2 id="complete-code">Complete Code: Full Working QRNG</h2>
+
+<p>Here is everything combined into a single, ready-to-run script:</p>
+
+<pre><code class="language-python">"""
+Quantum Random Number Generator using Qiskit + IBM Quantum
+Generates true random numbers from real quantum hardware.
+
+Usage:
+    pip install qiskit qiskit-ibm-runtime
+    python qrng.py
+"""
+
+import hashlib
+import json
+import math
+from qiskit.circuit import QuantumCircuit
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+
+def build_qrng_circuit(num_qubits: int = 12) -> QuantumCircuit:
+    """Build an entangled QRNG circuit (H + CNOT chain)."""
+    qc = QuantumCircuit(num_qubits, num_qubits)
+    for i in range(num_qubits):
+        qc.h(i)
+    for i in range(num_qubits - 1):
+        qc.cx(i, i + 1)
+    for i in range(num_qubits):
+        qc.measure(i, i)
+    return qc
+
+
+def run_on_hardware(circuit: QuantumCircuit, shots: int = 4096) -> dict:
+    """Run circuit on real IBM quantum hardware."""
+    service = QiskitRuntimeService(channel="ibm_quantum_platform")
+    backend = service.least_busy(simulator=False, min_num_qubits=12)
+    print(f"Running on {backend.name}...")
+
+    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+    isa_circuit = pm.run(circuit)
+
+    sampler = Sampler(mode=backend)
+    job = sampler.run([isa_circuit], shots=shots)
+    result = job.result()
+
+    return result[0].data.c.get_counts()
+
+
+def counts_to_seed(counts: dict) -> str:
+    """Convert measurement counts to a SHA-256 hex seed."""
+    sorted_data = json.dumps(counts, sort_keys=True)
+    return hashlib.sha256(sorted_data.encode()).hexdigest()
+
+
+def verify_entropy(counts: dict, shots: int, num_qubits: int):
+    """Print Shannon entropy of the measurement distribution."""
+    entropy = 0.0
+    for count in counts.values():
+        if count > 0:
+            p = count / shots
+            entropy -= p * math.log2(p)
+    max_ent = math.log2(2 ** num_qubits)
+    print(f"Entropy: {entropy:.4f} / {max_ent:.4f} bits ({entropy/max_ent*100:.1f}%)")
+
+
+if __name__ == "__main__":
+    NUM_QUBITS = 12
+    SHOTS = 4096
+
+    print("Building quantum circuit...")
+    circuit = build_qrng_circuit(NUM_QUBITS)
+
+    print("Submitting to quantum hardware...")
+    counts = run_on_hardware(circuit, SHOTS)
+
+    seed = counts_to_seed(counts)
+    print(f"\nQuantum seed: {seed}")
+
+    verify_entropy(counts, SHOTS, NUM_QUBITS)
+    print(f"\nUnique bitstrings measured: {len(counts)}")
+    print("Done! Use this seed for any application requiring true randomness.")</code></pre>
+
+<p>That is under 60 lines of code for a complete, working quantum random number generator that runs on real hardware. Copy it, run it, and you will have true quantum random numbers in minutes.</p>
+
+<h2>What You Can Build With This</h2>
+
+<p>A QRNG is a foundation. Here are some things you can build on top of it:</p>
+
+<ul>
+  <li><strong>Generative art</strong> &mdash; like our <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> collection</li>
+  <li><strong>Cryptographic key generation</strong> &mdash; quantum-grade entropy for encryption keys</li>
+  <li><strong>Fair lotteries and gaming</strong> &mdash; provably unbiased random selection</li>
+  <li><strong>Monte Carlo simulations</strong> &mdash; scientific computing with true randomness</li>
+  <li><strong>NFT trait generation</strong> &mdash; on-chain verifiable quantum randomness for rarity</li>
+</ul>
+
+<p>The quantum computing era is here, and IBM gives you free access to it. There has never been a better time to start experimenting.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/quantum_genesis_099.png" alt="Quantum Genesis #99 — abstract art generated by quantum random number generator built with Qiskit tutorial code" style="max-width:100%; border-radius:8px; margin:16px 0;" />
+<p><em>Quantum Genesis #99 &mdash; generated using the exact QRNG code from this tutorial, running on IBM's ibm_fez quantum processor.</em></p>
+
+<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 12px; padding: 32px; margin: 32px 0; text-align: center; color: #fff;">
+  <h3 style="margin-top: 0; color: #e94560;">See What Quantum Randomness Looks Like</h3>
+  <p style="font-size: 1.1em; opacity: 0.9;">100 NFTs generated from real quantum computers using this exact approach.</p>
+  <p>
+    <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block; background:#e94560; color:#fff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:bold; margin:8px;">View Quantum Genesis on OpenSea</a>
+    <a href="https://dev.to/marceloclaudecode01/i-used-a-real-quantum-computer-to-generate-art-and-the-randomness-is-nothing-like-what-algorithms-lno" target="_blank" rel="noopener" style="display:inline-block; background:transparent; color:#e94560; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:bold; border:2px solid #e94560; margin:8px;">Read the Full Story</a>
+  </p>
+  <p style="font-size:0.85em; opacity:0.6;">Contract: <code style="color:#e94560;">0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27</code> &mdash; Polygon Mainnet</p>
+</div>

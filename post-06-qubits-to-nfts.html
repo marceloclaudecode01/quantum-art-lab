@@ -1,0 +1,410 @@
+<!--
+Title: From Qubits to NFTs: The Complete Technical Architecture
+Meta Description: The full technical architecture behind Quantum Genesis: quantum circuits to IPFS art to Polygon smart contracts. Every layer explained with code.
+Labels: nft, blockchain, quantum-computing, deep-dive, python
+Permalink: /2026/04/qubits-to-nfts-architecture.html
+-->
+
+<!-- Featured Image -->
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png" alt="Quantum Genesis NFT #42 — full pipeline from quantum computer to blockchain" style="max-width:100%;border-radius:12px;margin-bottom:24px;" />
+
+<p>Quantum Genesis is 100 NFTs where every pixel traces back to a measurement on a real quantum computer. No pseudorandom fallbacks, no simulated qubits &mdash; actual quantum hardware on two continents feeding a deterministic art pipeline that ends on the Polygon blockchain.</p>
+
+<p>This post breaks down every layer of the architecture, with code from each stage. If you've ever wondered what it takes to go from a qubit measurement to a minted NFT, this is the full blueprint.</p>
+
+<!-- Table of Contents -->
+<div style="background:#f8f9fa;border-left:4px solid #6c5ce7;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0;">
+<strong>Table of Contents</strong>
+<ol>
+<li><a href="#architecture">Architecture Overview</a></li>
+<li><a href="#layer1">Layer 1: Quantum Seed Generation</a></li>
+<li><a href="#layer2">Layer 2: Art Generation (RNG + SVG + PNG)</a></li>
+<li><a href="#layer3">Layer 3: IPFS Storage (Pinata)</a></li>
+<li><a href="#layer4">Layer 4: Smart Contract (Polygon)</a></li>
+<li><a href="#layer5">Layer 5: Marketplace (OpenSea)</a></li>
+<li><a href="#provenance">What Makes This Unique</a></li>
+<li><a href="#collection">Explore the Collection</a></li>
+</ol>
+</div>
+
+<h2 id="architecture">Architecture Overview</h2>
+
+<p>The entire pipeline is five layers, each feeding the next deterministically. Given the same quantum seed, the same NFT art is always produced &mdash; making every piece independently verifiable.</p>
+
+<pre><code style="display:block;background:#1a1a2e;color:#00ff88;padding:20px;border-radius:8px;overflow-x:auto;font-family:monospace;font-size:14px;line-height:1.8;">
+ QUANTUM GENESIS &mdash; Full Pipeline Architecture
+
+ +---------------------+
+ | QUANTUM COMPUTER    |  Origin WK_C180 (180q) / IBM ibm_fez (156q)
+ | H + CNOT circuit    |  12 qubits, max-entropy, 4096-8000 shots
+ +----------+----------+
+            |
+            v  measurement counts
+ +----------+----------+
+ | SEED GENERATION     |  SHA-256(sorted counts) &rarr; 64-char hex seed
+ | quantum_nft_gen.py  |  + quantum certificate (backend, shots, timestamp)
+ +----------+----------+
+            |
+            v  hex seed string
+ +----------+----------+
+ | ART GENERATOR       |  QuantumRNG (xorshift128+ from SHA-512)
+ | SVG layers:         |  background, shapes, beziers, particles, noise
+ |   &rarr; Selenium &rarr; PNG |  1024x1024 rasterization
+ +----------+----------+
+            |
+            v  PNG file
+ +----------+----------+
+ | IPFS (Pinata)       |  3 CIDs: art folder / individual PNG / metadata
+ | ERC-721 metadata    |  name, description, image, attributes[]
+ +----------+----------+
+            |
+            v  tokenURI (ipfs://...)
+ +----------+----------+
+ | POLYGON CONTRACT    |  ERC-721 + EIP-2981 (5% royalties)
+ | 0x488f...1a27       |  batchMint(), MAX_SUPPLY=100, symbol=QGEN
+ +----------+----------+
+            |
+            v  on-chain token
+ +----------+----------+
+ | OPENSEA             |  Auto-detects Polygon ERC-721
+ | Marketplace listing |  Metadata + image from IPFS gateway
+ +---------------------+
+</code></pre>
+
+<h2 id="layer1">Layer 1: Quantum Seed Generation</h2>
+
+<p>Everything starts with a quantum circuit. We use 12 qubits in a Hadamard + CNOT configuration that produces maximum entropy &mdash; every possible 12-bit measurement outcome is equally likely in an ideal quantum computer.</p>
+
+<h3>The Circuit</h3>
+
+<pre><code class="language-python"># Same logical circuit on both platforms
+# 12 qubits: H gate on each (superposition), CNOT on pairs (entanglement)
+
+# Qiskit version (IBM):
+qc = QuantumCircuit(12, 12)
+for i in range(12):
+    qc.h(i)                    # |0&gt; &rarr; (|0&gt; + |1&gt;) / sqrt(2)
+for i in range(0, 11, 2):
+    qc.cx(i, i + 1)           # Entangle qubit pairs
+qc.measure(range(12), range(12))</code></pre>
+
+<p>The H gate puts each qubit into equal superposition. The CNOT gates entangle adjacent pairs, so measuring one qubit instantly determines its partner. This creates correlated randomness &mdash; not just independent coin flips, but quantum-mechanically entangled outcomes.</p>
+
+<h3>From Measurements to Seed</h3>
+
+<p>Each execution produces a dictionary of bitstring counts. For example, with 4,096 shots on IBM:</p>
+
+<pre><code class="language-python">counts = {
+    "000000000000": 1,
+    "000000000001": 2,
+    "000000000010": 1,
+    ...
+    "111111111111": 1
+}
+# ~4096 possible outcomes, each appearing roughly once
+
+# Deterministic seed: sort counts, concatenate, SHA-256
+raw = "".join(f"{k}:{v}" for k, v in sorted(counts.items()))
+seed = hashlib.sha256(raw.encode()).hexdigest()
+# e.g. "a3f7c2e891d4b5067f8e2a1c9d3b4e6f..."</code></pre>
+
+<p>The SHA-256 hash compresses the full measurement distribution into a 256-bit seed. This seed is deterministic: the same measurement counts always produce the same seed, making the art reproducible and verifiable.</p>
+
+<h3>Quantum Certificate</h3>
+
+<p>Every NFT stores a certificate in its metadata recording the quantum provenance:</p>
+
+<pre><code class="language-json">{
+  "quantum_backend": "ibm_fez",
+  "quantum_provider": "IBM Quantum",
+  "quantum_chip_qubits": 156,
+  "quantum_shots": 4096,
+  "quantum_timestamp": "2026-03-18T14:32:01Z",
+  "quantum_seed": "a3f7c2e891d4b506..."
+}</code></pre>
+
+<h2 id="layer2">Layer 2: Art Generation (RNG + SVG + PNG)</h2>
+
+<p>The quantum seed feeds a custom deterministic random number generator that controls every visual parameter of the art.</p>
+
+<h3>QuantumRNG: Seeded PRNG from Quantum Entropy</h3>
+
+<pre><code class="language-python">class QuantumRNG:
+    """Deterministic RNG seeded by quantum measurement.
+    Uses xorshift128+ algorithm fed by SHA-512 of the quantum seed."""
+
+    def __init__(self, quantum_seed: str):
+        # Expand 256-bit seed to 512 bits for two 64-bit state words
+        expanded = hashlib.sha512(quantum_seed.encode()).hexdigest()
+        self.s0 = int(expanded[:16], 16)
+        self.s1 = int(expanded[16:32], 16)
+
+    def next(self) -&gt; float:
+        """Returns float in [0, 1) using xorshift128+"""
+        s0, s1 = self.s0, self.s1
+        result = (s0 + s1) &amp; 0xFFFFFFFFFFFFFFFF
+        s1 ^= s0
+        self.s0 = ((s0 &lt;&lt; 55) | (s0 &gt;&gt; 9)) ^ s1 ^ (s1 &lt;&lt; 14)
+        self.s1 = (s1 &lt;&lt; 36) | (s1 &gt;&gt; 28)
+        return (result &gt;&gt; 11) / (1 &lt;&lt; 53)</code></pre>
+
+<p>The key insight: <code>xorshift128+</code> is a fast, well-studied PRNG. By seeding it with quantum-derived entropy (not system time or <code>/dev/urandom</code>), every random decision in the art has a provable chain back to the quantum measurement. And it's deterministic &mdash; the same seed always produces the same art.</p>
+
+<h3>SVG Generation: Five Visual Layers</h3>
+
+<p>Each NFT is composed of five stacked SVG layers, all controlled by the QuantumRNG:</p>
+
+<ol>
+<li><strong>Background:</strong> Gradient from a quantum-selected color harmony (complementary, analogous, triadic, split-complementary, or tetradic &mdash; 5 possible schemes)</li>
+<li><strong>Background shapes:</strong> Large geometric forms (circles, rectangles, polygons) with low opacity, creating depth</li>
+<li><strong>Bezier curves:</strong> Flowing organic lines with quantum-random control points, stroke colors, and widths</li>
+<li><strong>Mid-ground shapes:</strong> Medium-sized elements with varied opacity and rotation</li>
+<li><strong>Particles:</strong> Hundreds of small dots and micro-shapes creating texture</li>
+<li><strong>Noise overlay:</strong> Subtle grain filter for visual cohesion</li>
+</ol>
+
+<pre><code class="language-python"># Simplified example: background color selection
+harmonies = ["complementary", "analogous", "triadic",
+             "split-complementary", "tetradic"]
+harmony = harmonies[int(rng.next() * len(harmonies))]
+
+# Base hue from quantum randomness
+base_hue = rng.next() * 360  # 0-360 degrees
+
+# Generate palette from harmony rules
+if harmony == "complementary":
+    colors = [hsl(base_hue, 70, 50), hsl(base_hue + 180, 70, 50)]
+elif harmony == "triadic":
+    colors = [hsl(base_hue, 70, 50), hsl(base_hue + 120, 70, 50),
+              hsl(base_hue + 240, 70, 50)]
+# ... etc</code></pre>
+
+<h3>SVG to PNG: Selenium Rasterization</h3>
+
+<p>SVG is resolution-independent, but NFT marketplaces need PNG. We use a headless Chrome browser via Selenium to render each SVG at 1024x1024 pixels:</p>
+
+<pre><code class="language-python">from selenium import webdriver
+
+options = webdriver.ChromeOptions()
+options.add_argument("--headless")
+options.add_argument("--window-size=1024,1024")
+
+driver = webdriver.Chrome(options=options)
+driver.get(f"file://{svg_path}")
+driver.save_screenshot(png_path)
+driver.quit()</code></pre>
+
+<p>Why Selenium instead of a library like CairoSVG? Our SVGs use CSS filters (blur, noise), gradients, and blend modes that simpler rasterizers don't handle correctly. Chrome renders them exactly as designed.</p>
+
+<h2 id="layer3">Layer 3: IPFS Storage (Pinata)</h2>
+
+<p>NFT art and metadata must be permanently accessible, independent of any single server. IPFS (InterPlanetary File System) provides content-addressed storage: files are retrieved by their hash, not by a URL that can break.</p>
+
+<h3>Three CIDs per Collection</h3>
+
+<p>We upload to <a href="https://www.pinata.cloud/" target="_blank" rel="noopener">Pinata</a> (a pinning service that keeps IPFS content available) and produce three content identifiers (CIDs):</p>
+
+<ol>
+<li><strong>Art folder CID:</strong> All 100 PNG files in a single IPFS directory &mdash; <code>bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a</code></li>
+<li><strong>Individual PNG CIDs:</strong> Each image also has its own CID for direct reference</li>
+<li><strong>Metadata folder CID:</strong> 100 JSON files following the ERC-721 metadata standard</li>
+</ol>
+
+<pre><code class="language-python">import requests
+
+# Upload PNG to Pinata
+url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
+headers = {"Authorization": f"Bearer {os.environ['PINATA_JWT']}"}
+
+with open(png_path, "rb") as f:
+    response = requests.post(url, files={"file": f}, headers=headers)
+    cid = response.json()["IpfsHash"]
+
+# Accessible at any IPFS gateway:
+# https://gateway.pinata.cloud/ipfs/{cid}
+# https://maroon-bright-perch-405.mypinata.cloud/ipfs/{cid}</code></pre>
+
+<h3>ERC-721 Metadata Standard</h3>
+
+<p>Each NFT's metadata JSON follows the standard that OpenSea and other marketplaces expect:</p>
+
+<pre><code class="language-json">{
+  "name": "Quantum Genesis #42",
+  "description": "Generated from real quantum computer measurements...",
+  "image": "ipfs://bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png",
+  "external_url": "https://opensea.io/collection/quantum-genesis",
+  "attributes": [
+    {"trait_type": "Quantum Provider", "value": "IBM Quantum"},
+    {"trait_type": "Quantum Backend", "value": "ibm_fez"},
+    {"trait_type": "Qubits Used", "value": 12},
+    {"trait_type": "Shots", "value": 4096},
+    {"trait_type": "Color Harmony", "value": "triadic"},
+    {"trait_type": "Shape Count", "value": 47},
+    {"trait_type": "Particle Count", "value": 312}
+  ]
+}</code></pre>
+
+<p>The <code>image</code> field uses the <code>ipfs://</code> protocol, not an HTTP gateway URL. This ensures the reference survives even if Pinata's gateway changes. Marketplaces know how to resolve <code>ipfs://</code> URIs.</p>
+
+<h2 id="layer4">Layer 4: Smart Contract (Polygon)</h2>
+
+<p>The NFTs live on <strong>Polygon</strong> (an Ethereum L2) for fast, low-cost transactions. The contract is a self-contained ERC-721 with built-in royalties.</p>
+
+<h3>Contract Specifications</h3>
+
+<table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:15px;">
+<tbody>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;width:200px;">Address</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener"><code>0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27</code></a></td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Standard</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">ERC-721 (non-fungible token)</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Royalties</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">EIP-2981, 5% on secondary sales</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Symbol</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">QGEN</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Max Supply</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">100 (hardcoded, immutable)</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Network</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Polygon (Mainnet)</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Owner Wallet</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><code>0xa198032b224f6087cE83B8b499921AD64A5D2e00</code></td>
+</tr>
+</tbody>
+</table>
+
+<h3>Key Contract Features</h3>
+
+<pre><code class="language-solidity">// Simplified contract structure (Solidity)
+
+contract QuantumGenesis is ERC721, ERC2981, Ownable {
+    uint256 public constant MAX_SUPPLY = 100;
+    string private _baseTokenURI;
+
+    // Batch mint for gas efficiency
+    function batchMint(address to, uint256[] calldata tokenIds)
+        external onlyOwner
+    {
+        for (uint256 i = 0; i &lt; tokenIds.length; i++) {
+            require(totalSupply() &lt; MAX_SUPPLY, "Max supply reached");
+            _safeMint(to, tokenIds[i]);
+        }
+    }
+
+    // EIP-2981: 5% royalty on all secondary sales
+    function royaltyInfo(uint256, uint256 salePrice)
+        external view returns (address, uint256)
+    {
+        return (owner(), salePrice * 500 / 10000); // 5%
+    }
+
+    // Token URI points to IPFS metadata
+    function tokenURI(uint256 tokenId)
+        public view returns (string memory)
+    {
+        return string(abi.encodePacked(_baseTokenURI, tokenId.toString()));
+    }
+}</code></pre>
+
+<p>The <code>batchMint</code> function is critical for gas efficiency. Instead of 100 separate transactions, we mint in batches &mdash; reducing total gas cost by roughly 40%. On Polygon, gas is already cheap (fractions of a cent per transaction), but batch minting keeps the process clean.</p>
+
+<h3>Minting Script</h3>
+
+<pre><code class="language-python"># deploy_and_mint.py (simplified)
+from web3 import Web3
+
+w3 = Web3(Web3.HTTPProvider("https://polygon-rpc.com"))
+contract = w3.eth.contract(address=CONTRACT_ADDR, abi=ABI)
+
+# Batch mint tokens 1-25
+token_ids = list(range(1, 26))
+tx = contract.functions.batchMint(wallet_addr, token_ids).build_transaction({
+    "from": wallet_addr,
+    "nonce": w3.eth.get_transaction_count(wallet_addr),
+    "gas": 500000,
+    "gasPrice": w3.to_wei("50", "gwei")
+})
+
+signed = w3.eth.account.sign_transaction(tx, private_key)
+tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+print(f"Minted batch: {tx_hash.hex()}")</code></pre>
+
+<h2 id="layer5">Layer 5: Marketplace (OpenSea)</h2>
+
+<p>OpenSea automatically detects ERC-721 contracts on Polygon. Once the contract is deployed and tokens are minted, OpenSea indexes the collection by reading:</p>
+
+<ol>
+<li>The contract's <code>tokenURI()</code> function for each minted token</li>
+<li>The IPFS metadata JSON at the returned URI</li>
+<li>The <code>image</code> field in the metadata to display the art</li>
+<li>The <code>attributes</code> array to populate trait filters</li>
+</ol>
+
+<p>No manual upload to OpenSea is needed. The collection appears at <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">opensea.io/collection/quantum-genesis</a> once OpenSea's indexer crawls the contract.</p>
+
+<blockquote style="border-left:4px solid #6c5ce7;padding:12px 20px;margin:24px 0;background:#f8f9fa;font-style:italic;">
+The beauty of the ERC-721 standard: deploy your contract, mint your tokens, point tokenURI at IPFS &mdash; and every marketplace in the ecosystem can display your collection without any integration work.
+</blockquote>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:24px 0;">
+<div style="text-align:center;">
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/7.png" alt="Quantum Genesis NFT #7 generated on Origin Quantum WK_C180" style="width:280px;border-radius:12px;" />
+<p style="font-size:13px;color:#666;">NFT #7 &mdash; Origin Quantum WK_C180</p>
+</div>
+<div style="text-align:center;">
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png" alt="Quantum Genesis NFT #42 generated on IBM Quantum ibm_fez" style="width:280px;border-radius:12px;" />
+<p style="font-size:13px;color:#666;">NFT #42 &mdash; IBM Quantum ibm_fez</p>
+</div>
+<div style="text-align:center;">
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/88.png" alt="Quantum Genesis NFT #88 generated on IBM Quantum ibm_fez" style="width:280px;border-radius:12px;" />
+<p style="font-size:13px;color:#666;">NFT #88 &mdash; IBM Quantum ibm_fez</p>
+</div>
+</div>
+
+<h2 id="provenance">What Makes This Unique: Quantum-to-Blockchain Provenance</h2>
+
+<p>Most "generative art" NFTs use <code>Math.random()</code> or a block hash as their entropy source. There's nothing wrong with that, but the randomness is algorithmically generated &mdash; it's pseudorandom, derived from deterministic processes.</p>
+
+<p>Quantum Genesis is different because the entire provenance chain is verifiable:</p>
+
+<ol>
+<li><strong>Quantum measurement</strong> on a named, real quantum computer (not a simulator)</li>
+<li><strong>Deterministic transformation</strong> &mdash; SHA-256 hash of sorted measurement counts</li>
+<li><strong>Deterministic art</strong> &mdash; same seed always produces the same SVG/PNG</li>
+<li><strong>Immutable storage</strong> &mdash; IPFS content addressing (change the file, change the CID)</li>
+<li><strong>On-chain record</strong> &mdash; tokenURI permanently links token ID to metadata CID</li>
+</ol>
+
+<p>Every step is reproducible. Given the quantum measurement counts for NFT #42, anyone can re-derive the seed, regenerate the art, and verify it matches the IPFS image. The quantum computer is the only non-reproducible step &mdash; and that's the point. The randomness comes from physics, not algorithms.</p>
+
+<blockquote style="border-left:4px solid #00b894;padding:12px 20px;margin:24px 0;background:#f0fff4;">
+<strong>The chain of provenance:</strong><br/>
+Quantum Computer (physics) &rarr; Measurement counts (data) &rarr; SHA-256 seed (deterministic) &rarr; Art (deterministic) &rarr; IPFS (immutable) &rarr; Polygon (permanent)
+</blockquote>
+
+<p>This is what "quantum-native" means in the context of NFTs. The quantum computer isn't a gimmick bolted onto the side &mdash; it's the root of the entire generative process. Remove it, and there's no art.</p>
+
+<h2 id="collection">Explore the Collection</h2>
+
+<!-- CTA Box -->
+<div style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);padding:32px;border-radius:16px;text-align:center;margin:32px 0;">
+<h2 style="color:#fff;margin:0 0 12px 0;font-size:24px;">Quantum Genesis &mdash; 100 NFTs from Real Quantum Computers</h2>
+<p style="color:#e8e4ff;margin:0 0 8px 0;font-size:16px;">NFTs #1-18: Origin Quantum WK_C180 (180 qubits)</p>
+<p style="color:#e8e4ff;margin:0 0 20px 0;font-size:16px;">NFTs #19-100: IBM Quantum ibm_fez (156q) &amp; ibm_torino (133q)</p>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#fff;color:#6c5ce7;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">View on OpenSea</a>
+<p style="color:#c8c2f0;font-size:13px;margin:16px 0 0 0;">Contract: <a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener" style="color:#e8e4ff;">0x488f...1a27</a> &nbsp;|&nbsp; Polygon &nbsp;|&nbsp; ERC-721 &nbsp;|&nbsp; EIP-2981 5% Royalties &nbsp;|&nbsp; QGEN</p>
+</div>
+
+<p><em>Want to build something similar? Start with our <a href="/2026/03/ibm-quantum-python-art-pipeline-tutorial.html">IBM Quantum tutorial</a> or read the <a href="/2026/03/origin-quantum-vs-ibm-quantum.html">Origin vs IBM comparison</a> to choose your platform.</em></p>

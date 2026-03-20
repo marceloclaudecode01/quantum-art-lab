@@ -1,0 +1,307 @@
+<!--
+Post Title: How to Connect IBM Quantum to a Python Art Pipeline (Step-by-Step)
+Meta Description: A complete step-by-step tutorial for connecting to IBM Quantum's real processors using Qiskit and Python. Build a quantum random seed generator for generative art in under 50 lines.
+Labels: tutorial, quantum-computing, python, qiskit
+Permalink: ibm-quantum-python-art-pipeline-tutorial
+-->
+
+<p><em>This is the exact method we used to generate NFTs #19-100 in the <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> collection — each one seeded by a real IBM Quantum processor. Follow along and you will have a working quantum random seed generator in under 50 lines of Python.</em></p>
+
+<h2>Table of Contents</h2>
+<ul>
+  <li><a href="#prerequisites">Prerequisites</a></li>
+  <li><a href="#step1">Step 1: Install Qiskit</a></li>
+  <li><a href="#step2">Step 2: Get Your IBM Quantum Token</a></li>
+  <li><a href="#step3">Step 3: Initialize the Service</a></li>
+  <li><a href="#step4">Step 4: Select a Backend</a></li>
+  <li><a href="#step5">Step 5: Build the Quantum Circuit</a></li>
+  <li><a href="#step6">Step 6: Transpile and Run</a></li>
+  <li><a href="#step7">Step 7: Extract Counts and Generate Seed</a></li>
+  <li><a href="#step8">Step 8: Feed the Seed Into Your Art Generator</a></li>
+  <li><a href="#complete-code">Complete Working Code</a></li>
+  <li><a href="#pitfalls">Common Pitfalls</a></li>
+  <li><a href="#next-steps">Next Steps</a></li>
+</ul>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<ul>
+  <li><strong>Python 3.9+</strong> installed on your system</li>
+  <li>A free <strong>IBM Quantum account</strong> at <a href="https://quantum.ibm.com" target="_blank" rel="noopener">quantum.ibm.com</a></li>
+  <li>Basic Python knowledge (functions, imports, dictionaries)</li>
+  <li>About 15 minutes of setup time and 1-5 minutes of queue wait time per job</li>
+</ul>
+
+<blockquote>
+<strong>What you will build:</strong> A Python script that connects to a real IBM quantum processor, runs a 12-qubit circuit, collects measurement data, and converts it into a deterministic hex seed you can use for any generative art pipeline.
+</blockquote>
+
+<h2>Step-by-Step Tutorial</h2>
+
+<ol>
+
+<li id="step1">
+<h3>Install Qiskit</h3>
+
+<p>You need two packages: <code>qiskit</code> (the core SDK) and <code>qiskit-ibm-runtime</code> (the interface to IBM's cloud quantum processors).</p>
+
+<pre><code class="language-python">pip install qiskit qiskit-ibm-runtime</code></pre>
+
+<p>This installs Qiskit 1.x with the Runtime primitives API. If you have an older version of Qiskit installed, upgrade with <code>pip install --upgrade qiskit qiskit-ibm-runtime</code>.</p>
+</li>
+
+<li id="step2">
+<h3>Get Your IBM Quantum Token</h3>
+
+<p>Go to <a href="https://quantum.ibm.com" target="_blank" rel="noopener">quantum.ibm.com</a> and sign up for a free account. Once logged in, navigate to your account settings and copy your API token.</p>
+
+<p>The free tier gives you access to real quantum processors with fair-share queuing. No credit card required. Processors available include ibm_fez (156 qubits), ibm_torino (133 qubits), ibm_marrakesh (156 qubits), and ibm_kingston (156 qubits).</p>
+
+<p>Store the token as an environment variable rather than hardcoding it:</p>
+
+<pre><code class="language-python"># Linux/Mac
+export IBM_QUANTUM_TOKEN="your_token_here"
+
+# Windows PowerShell
+$env:IBM_QUANTUM_TOKEN = "your_token_here"</code></pre>
+</li>
+
+<li id="step3">
+<h3>Initialize the Service</h3>
+
+<pre><code class="language-python">import os
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
+
+token = os.environ["IBM_QUANTUM_TOKEN"]
+service = QiskitRuntimeService(
+    channel="ibm_quantum_platform",
+    token=token
+)</code></pre>
+
+<p>The <code>channel</code> parameter must be <code>"ibm_quantum_platform"</code>. This is the current channel name — older tutorials may show <code>"ibm_quantum"</code> which no longer works.</p>
+</li>
+
+<li id="step4">
+<h3>Select a Backend</h3>
+
+<p>Instead of hardcoding a specific processor, we query for all available real backends and pick the one with the shortest queue:</p>
+
+<pre><code class="language-python">backends = service.backends(
+    simulator=False,
+    operational=True,
+    min_num_qubits=8
+)
+backends.sort(key=lambda b: b.status().pending_jobs)
+backend = backends[0]
+print(f"Selected backend: {backend.name} ({backend.num_qubits} qubits, "
+      f"{backend.status().pending_jobs} pending jobs)")</code></pre>
+
+<p>This approach is resilient. If ibm_fez is under maintenance, the script automatically picks the next best option. For Quantum Genesis, most jobs landed on ibm_fez (156 qubits) and ibm_torino (133 qubits).</p>
+</li>
+
+<li id="step5">
+<h3>Build the Quantum Circuit</h3>
+
+<p>This is the core of the seed generation — a 12-qubit circuit designed for maximum entropy:</p>
+
+<pre><code class="language-python">from qiskit import QuantumCircuit
+
+def build_nft_seed_circuit(n_qubits=12):
+    """H + alternating CNOT max-entropy seed-generation circuit."""
+    qc = QuantumCircuit(n_qubits, n_qubits)
+
+    # Hadamard layer: put every qubit into superposition
+    for i in range(n_qubits):
+        qc.h(i)
+
+    # Even CNOT layer: entangle pairs (0,1), (2,3), (4,5)...
+    for i in range(0, n_qubits - 1, 2):
+        qc.cx(i, i + 1)
+
+    # Odd CNOT layer: entangle pairs (1,2), (3,4), (5,6)...
+    for i in range(1, n_qubits - 1, 2):
+        qc.cx(i, i + 1)
+
+    # Measure all qubits
+    qc.measure(range(n_qubits), range(n_qubits))
+    return qc
+
+circuit = build_nft_seed_circuit()</code></pre>
+
+<p>The Hadamard gates create superposition. The alternating CNOT layers create entanglement — correlations between qubits that cannot exist classically. When measured, these correlations produce probability distributions that no pseudorandom generator can replicate.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/19.png" alt="Quantum Genesis NFT #19 first NFT generated from IBM Quantum ibm_fez processor" width="400" />
+</li>
+
+<li id="step6">
+<h3>Transpile and Run</h3>
+
+<p>Real quantum processors have specific hardware constraints — not every qubit can connect to every other qubit. Transpilation adapts your circuit to the hardware's topology:</p>
+
+<pre><code class="language-python">from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+# Transpile for the selected backend
+pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+isa_circuit = pm.run(circuit)
+
+# Run on real hardware using SamplerV2
+sampler = Sampler(mode=backend)
+job = sampler.run([isa_circuit], shots=4096)
+print(f"Job ID: {job.job_id()} — waiting for results...")
+result = job.result()</code></pre>
+
+<p>The <code>optimization_level=1</code> balances compilation speed with circuit optimization. Higher levels (2 or 3) reduce gate count but take longer to compile. For seed generation, level 1 is sufficient.</p>
+
+<p>Wait time depends on queue depth — typically 30 seconds to 5 minutes on the free tier. The <code>job.result()</code> call blocks until the job completes.</p>
+</li>
+
+<li id="step7">
+<h3>Extract Counts and Generate Seed</h3>
+
+<p>SamplerV2 returns results in a specific format. The classical register is accessed via the <code>c</code> attribute (not <code>meas</code> — this is a common mistake):</p>
+
+<pre><code class="language-python">import hashlib
+
+# Extract measurement counts from SamplerV2 result
+pub_result = result[0]
+counts = pub_result.data.c.get_counts()
+
+# Convert counts to deterministic hex seed
+sorted_counts = sorted(counts.items())
+raw = "|".join(f"{k}:{v}" for k, v in sorted_counts)
+seed = hashlib.sha256(raw.encode()).hexdigest()
+print(f"Quantum seed: {seed}")
+# Example: "a3f7c1d8e5b2094f6..."  (64-char hex string)</code></pre>
+
+<p>The SHA-256 hash ensures a deterministic mapping from measurement data to seed. Same counts always produce the same seed, but even a single bit flip in the quantum measurement produces a completely different hash.</p>
+
+<blockquote>
+<strong>Why SHA-256?</strong> Raw measurement counts are noisy and variable-length. Hashing normalizes them into a fixed 256-bit value with uniform distribution — perfect for seeding any PRNG or art generator.
+</blockquote>
+</li>
+
+<li id="step8">
+<h3>Feed the Seed Into Your Art Generator</h3>
+
+<p>The 64-character hex seed can drive any generative art pipeline. Here is a minimal example using Python's random module:</p>
+
+<pre><code class="language-python">import random
+
+# Use the quantum seed for deterministic art generation
+rng = random.Random(seed)
+
+# Generate art parameters from quantum randomness
+palette_index = rng.randint(0, 15)
+symmetry = rng.choice(["radial", "bilateral", "asymmetric"])
+complexity = rng.uniform(0.3, 1.0)
+hue_base = rng.randint(0, 360)
+
+print(f"Palette: {palette_index}, Symmetry: {symmetry}")
+print(f"Complexity: {complexity:.2f}, Hue: {hue_base}")
+
+# Pass these parameters to your SVG/Canvas/PIL renderer...</code></pre>
+
+<p>For Quantum Genesis, the seed drove every visual attribute: qubit configuration (GHZ-3, Steane-7, etc.), color palette, geometric structure, and fine detail. Each NFT's metadata records the exact quantum backend and shot count used.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/42.png" alt="Quantum Genesis NFT #42 generative art created from IBM Quantum measurement data" width="400" />
+</li>
+
+</ol>
+
+<h2 id="complete-code">Complete Working Code</h2>
+
+<p>Here is everything combined into a single, runnable script under 50 lines:</p>
+
+<pre><code class="language-python">"""Quantum random seed generator for generative art.
+Connects to IBM Quantum, runs a 12-qubit circuit, returns a hex seed."""
+
+import os
+import hashlib
+from qiskit import QuantumCircuit
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
+
+def build_nft_seed_circuit(n_qubits=12):
+    qc = QuantumCircuit(n_qubits, n_qubits)
+    for i in range(n_qubits):
+        qc.h(i)
+    for i in range(0, n_qubits - 1, 2):
+        qc.cx(i, i + 1)
+    for i in range(1, n_qubits - 1, 2):
+        qc.cx(i, i + 1)
+    qc.measure(range(n_qubits), range(n_qubits))
+    return qc
+
+def generate_quantum_seed():
+    # Connect to IBM Quantum
+    service = QiskitRuntimeService(
+        channel="ibm_quantum_platform",
+        token=os.environ["IBM_QUANTUM_TOKEN"]
+    )
+
+    # Pick the least-busy real backend
+    backends = service.backends(simulator=False, operational=True, min_num_qubits=8)
+    backends.sort(key=lambda b: b.status().pending_jobs)
+    backend = backends[0]
+    print(f"Backend: {backend.name} ({backend.num_qubits}q)")
+
+    # Build, transpile, and run
+    circuit = build_nft_seed_circuit()
+    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+    isa_circuit = pm.run(circuit)
+
+    sampler = Sampler(mode=backend)
+    job = sampler.run([isa_circuit], shots=4096)
+    result = job.result()
+
+    # Extract counts and hash into seed
+    counts = result[0].data.c.get_counts()
+    sorted_counts = sorted(counts.items())
+    raw = "|".join(f"{k}:{v}" for k, v in sorted_counts)
+    seed = hashlib.sha256(raw.encode()).hexdigest()
+    print(f"Quantum seed: {seed}")
+    return seed
+
+if __name__ == "__main__":
+    generate_quantum_seed()</code></pre>
+
+<p>Save this as <code>quantum_seed.py</code>, set your <code>IBM_QUANTUM_TOKEN</code> environment variable, and run it. You will get a 64-character hex seed derived from a real quantum measurement in about 1-5 minutes.</p>
+
+<h2 id="pitfalls">Common Pitfalls</h2>
+
+<h3>Wrong channel name</h3>
+<p>Use <code>"ibm_quantum_platform"</code>, not <code>"ibm_quantum"</code>. The channel name changed in recent Qiskit Runtime versions. Using the old name raises an authentication error.</p>
+
+<h3>SamplerV2 result format</h3>
+<p>The classical register is accessed via <code>result[0].data.c</code>, where <code>c</code> is the default classical register name. If you named your classical register something else in the circuit, use that name instead. The old <code>.data.meas</code> accessor no longer works.</p>
+
+<h3>Transpilation is required</h3>
+<p>You cannot run an abstract circuit directly on hardware. The <code>generate_preset_pass_manager</code> handles gate decomposition, qubit routing, and optimization for the specific processor. Skipping this step raises an error.</p>
+
+<h3>Queue times vary</h3>
+<p>Free-tier jobs share processor time fairly. During peak hours, you may wait 5-10 minutes. The backend selection logic (sorting by pending jobs) minimizes this. For batch generation, submit multiple jobs and collect results asynchronously.</p>
+
+<h3>Shots affect seed quality</h3>
+<p>More shots = more measurement data = richer probability information. We used 4096 shots (IBM's default). Using fewer than 1000 shots produces less statistically significant distributions. For art, 4096 is a good balance between quality and job time.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/100.png" alt="Quantum Genesis NFT #100 final piece in the collection from IBM Quantum" width="400" />
+
+<h2 id="next-steps">Next Steps</h2>
+
+<p>With this pipeline you can generate unlimited quantum-random seeds for any creative application: generative art, music, procedural game content, or cryptographic nonces. The seeds are provably random — backed by quantum mechanics, not algorithms.</p>
+
+<p>For the Quantum Genesis collection, we extended this pipeline with SVG rendering, PNG export, IPFS upload via Pinata, and minting to a Polygon smart contract. The full collection of 100 NFTs lives on-chain with metadata tracing each piece to its source quantum processor.</p>
+
+<blockquote>
+<strong>The code above is real and production-tested.</strong> It generated 82 of the 100 Quantum Genesis NFTs on IBM Quantum's ibm_fez and ibm_torino processors. The remaining 18 were generated on Origin Quantum's WK_C180 chip using pyqpanda3.
+</blockquote>
+
+<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; color: #ffffff;">
+  <h3 style="color: #e94560; margin-top: 0;">Quantum Genesis Collection</h3>
+  <p style="font-size: 1.1em;">100 NFTs generated from real quantum computers. Each seed is a frozen quantum measurement.</p>
+  <p>
+    <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display: inline-block; background: #e94560; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 5px;">View on OpenSea</a>
+    <a href="https://dev.to/marceloclaudecode01/i-used-a-real-quantum-computer-to-generate-art-and-the-randomness-is-nothing-like-what-algorithms-lno" target="_blank" rel="noopener" style="display: inline-block; background: transparent; color: #e94560; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #e94560; margin: 5px;">Read the Full Story</a>
+  </p>
+  <p style="font-size: 0.85em; opacity: 0.7;">Contract: 0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27 (Polygon)</p>
+</div>

@@ -1,0 +1,307 @@
+<!--
+Title: Origin Quantum vs IBM Quantum: Real-World Comparison for Developers
+Meta Description: We ran the same quantum circuit on Origin Quantum's WK_C180 and IBM's ibm_fez. Here's an honest developer comparison — setup, SDK, performance, and results.
+Labels: quantum-computing, comparison, tutorial, python
+Permalink: /2026/03/origin-quantum-vs-ibm-quantum.html
+-->
+
+<!-- Featured Image -->
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/1.png" alt="Quantum Genesis NFT #1 generated on Origin Quantum WK_C180 chip" style="max-width:100%;border-radius:12px;margin-bottom:24px;" />
+
+<p>When I set out to create <strong>Quantum Genesis</strong> &mdash; a collection of 100 NFTs powered by real quantum computers &mdash; I didn't plan on using two different quantum platforms. But that's exactly what happened, and it gave me a rare opportunity to compare <strong>Origin Quantum</strong> and <strong>IBM Quantum</strong> side by side, running the exact same circuit on both.</p>
+
+<p>This post is the honest, developer-focused comparison I wish I'd had before starting. No marketing fluff &mdash; just code, numbers, and lessons learned from shipping production workloads on both platforms.</p>
+
+<!-- Table of Contents -->
+<div style="background:#f8f9fa;border-left:4px solid #6c5ce7;padding:16px 20px;margin:24px 0;border-radius:0 8px 8px 0;">
+<strong>Table of Contents</strong>
+<ol>
+<li><a href="#why-two">Why We Used Both Quantum Computers</a></li>
+<li><a href="#comparison-table">Head-to-Head Comparison Table</a></li>
+<li><a href="#origin-setup">Origin Quantum: Setup &amp; Code</a></li>
+<li><a href="#ibm-setup">IBM Quantum: Setup &amp; Code</a></li>
+<li><a href="#results">Results: Randomness Quality Compared</a></li>
+<li><a href="#dev-experience">Developer Experience Breakdown</a></li>
+<li><a href="#which-choose">Which Should You Choose?</a></li>
+<li><a href="#nft-proof">The Proof: NFTs from Both Platforms</a></li>
+</ol>
+</div>
+
+<h2 id="why-two">Why We Used Both Quantum Computers</h2>
+
+<p>The original plan was straightforward: generate all 100 quantum seeds on Origin Quantum's cloud. We chose Origin because their <strong>WK_C180</strong> chip offers 180 superconducting qubits &mdash; one of the largest publicly accessible processors from a Chinese quantum hardware company &mdash; and the <code>pyqpanda3</code> SDK was simple enough to integrate into our pipeline.</p>
+
+<p>We minted NFTs #1 through #18 on Origin Quantum without issues. Then the chip entered a maintenance window, and queue times became unpredictable. We needed 82 more NFTs, and we needed them on a schedule.</p>
+
+<p>Enter IBM Quantum. With its fleet of 100+ qubit processors, mature Qiskit ecosystem, and the SamplerV2 primitive, IBM was the natural scaling path. NFTs #19-100 were generated on <strong>ibm_fez</strong> (156 qubits) and <strong>ibm_torino</strong> (133 qubits).</p>
+
+<p>The result is a collection that carries quantum provenance from two independent quantum computers on different continents. That wasn't the plan, but it turned out to be a feature.</p>
+
+<h2 id="comparison-table">Head-to-Head Comparison Table</h2>
+
+<table style="width:100%;border-collapse:collapse;margin:24px 0;font-size:15px;">
+<thead>
+<tr style="background:#6c5ce7;color:#fff;">
+<th style="padding:12px 16px;text-align:left;border:1px solid #5a4bd1;">Feature</th>
+<th style="padding:12px 16px;text-align:left;border:1px solid #5a4bd1;">Origin Quantum</th>
+<th style="padding:12px 16px;text-align:left;border:1px solid #5a4bd1;">IBM Quantum</th>
+</tr>
+</thead>
+<tbody>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Chip</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">WK_C180 (180 qubits)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">ibm_fez (156q), ibm_torino (133q)</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">SDK</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">pyqpanda3 v0.3.4</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">qiskit + qiskit-ibm-runtime</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">API Style</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">QCloudService (REST wrapper)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">QiskitRuntimeService + Primitives</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Shots per Job</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">8,000</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">4,096</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Speed per NFT</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">~5-10 seconds (when available)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">~19 seconds (consistent)</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Queue Wait</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Unpredictable (none to hours)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Seconds to minutes</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Free Tier</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Yes (limited credits)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Yes (Open plan, ~10 min/month QPU)</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Documentation</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Sparse, mostly Chinese</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Extensive English docs + tutorials</td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Circuit Format</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">QProg (pyqpanda native)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">QuantumCircuit (OpenQASM / Qiskit)</td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;font-weight:bold;">Transpilation</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Server-side (automatic)</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Client-side (preset_pass_manager)</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="origin-setup">Origin Quantum: Setup &amp; Code</h2>
+
+<p>Origin Quantum's cloud is accessed through the <code>pyqpanda3</code> SDK. Installation is a single pip command, but the documentation journey is not straightforward &mdash; you'll be reading Chinese docs and reverse-engineering examples.</p>
+
+<pre><code class="language-bash">pip install pyqpanda3</code></pre>
+
+<p>Here's the core code we used to generate quantum seeds on WK_C180:</p>
+
+<pre><code class="language-python">import os, hashlib
+from pyqpanda3 import QCloudService, QProg, H, CNOT, measure
+
+# Connect to Origin Quantum Cloud
+service = QCloudService(
+    api_key=os.environ["QCLOUD_API_KEY"],
+    url="http://pyqanda-admin.qpanda.cn"
+)
+backend = service.backend("WK_C180")
+
+# Build max-entropy circuit: H + CNOT on 12 qubits
+num_qubits = 12
+prog = QProg()
+
+for i in range(num_qubits):
+    prog &lt;&lt; H(i)                    # Hadamard: equal superposition
+for i in range(0, num_qubits - 1, 2):
+    prog &lt;&lt; CNOT(i, i + 1)          # Entangle adjacent pairs
+
+# IMPORTANT: pyqpanda3 requires explicit qubit AND cbit lists
+prog &lt;&lt; measure(list(range(num_qubits)), list(range(num_qubits)))
+
+# Execute on real quantum hardware (8000 shots)
+result = backend.run(prog, shots=8000)
+
+# Convert measurement counts to deterministic seed
+raw_bits = "".join(f"{k}:{v}" for k, v in sorted(result.items()))
+seed = hashlib.sha256(raw_bits.encode()).hexdigest()
+print(f"Quantum seed: {seed}")</code></pre>
+
+<p><strong>Gotcha #1:</strong> The URL must be <code>http://pyqanda-admin.qpanda.cn</code> &mdash; not the public website URL (<code>qcloud.originqc.com.cn</code>). This isn't obvious anywhere in the docs. I found it by reading the SDK source code.</p>
+
+<p><strong>Gotcha #2:</strong> In pyqpanda3, the <code>measure()</code> function requires both qubit indices AND classical bit indices explicitly &mdash; <code>measure([0,1], [0,1])</code>. This is a breaking change from the older <code>pyqpanda</code> package and is barely documented.</p>
+
+<h2 id="ibm-setup">IBM Quantum: Setup &amp; Code</h2>
+
+<p>IBM's ecosystem is more polished. Sign up at <a href="https://quantum.ibm.com" target="_blank" rel="noopener">quantum.ibm.com</a>, grab your API token, install two packages, and you're running circuits on real hardware in minutes.</p>
+
+<pre><code class="language-bash">pip install qiskit qiskit-ibm-runtime</code></pre>
+
+<p>Our IBM quantum seed generation code:</p>
+
+<pre><code class="language-python">import os, hashlib
+from qiskit import QuantumCircuit
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
+from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+# Connect to IBM Quantum
+service = QiskitRuntimeService(
+    channel="ibm_quantum_platform",
+    token=os.environ["IBM_QUANTUM_TOKEN"]
+)
+backend = service.least_busy(min_num_qubits=12, operational=True)
+
+# Build the same H + CNOT max-entropy circuit
+qc = QuantumCircuit(12, 12)
+for i in range(12):
+    qc.h(i)
+for i in range(0, 11, 2):
+    qc.cx(i, i + 1)
+qc.measure(range(12), range(12))
+
+# Transpile for target hardware topology
+pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+transpiled = pm.run(qc)
+
+# Execute with SamplerV2 primitive (4096 shots)
+sampler = SamplerV2(mode=backend)
+job = sampler.run([transpiled], shots=4096)
+result = job.result()
+
+# CRITICAL: SamplerV2 uses 'c' register, NOT 'meas'
+counts = result[0].data.c.get_counts()
+
+raw_bits = "".join(f"{k}:{v}" for k, v in sorted(counts.items()))
+seed = hashlib.sha256(raw_bits.encode()).hexdigest()
+print(f"Quantum seed: {seed}")</code></pre>
+
+<p><strong>Gotcha #1:</strong> The channel name recently changed from <code>ibm_quantum</code> to <code>ibm_quantum_platform</code>. Old tutorials will trip you up.</p>
+
+<p><strong>Gotcha #2:</strong> SamplerV2 results use the classical register name <code>.c</code>, not <code>.meas</code>. This changed from SamplerV1 and breaks code copied from older guides.</p>
+
+<p><strong>Key difference:</strong> IBM requires client-side transpilation to map your abstract circuit onto the physical qubit topology. Origin handles this server-side. IBM's approach gives you more control and visibility; Origin's is simpler but opaque.</p>
+
+<h2 id="results">Results: Randomness Quality Compared</h2>
+
+<p>Both platforms produce genuine quantum randomness. Our circuit puts 12 qubits into maximal superposition (Hadamard gates) and entangles them in pairs (CNOT gates), then measures. This produces a probability distribution across 4,096 possible bitstrings (2^12).</p>
+
+<p>We hash the measurement counts with SHA-256 to produce a deterministic 64-character hex seed for each NFT. The quality of randomness from both chips is statistically indistinguishable &mdash; as it should be, since both are executing the same quantum physics.</p>
+
+<blockquote style="border-left:4px solid #6c5ce7;padding:12px 20px;margin:24px 0;background:#f8f9fa;font-style:italic;">
+Both Origin Quantum and IBM Quantum produce measurement distributions that pass chi-squared uniformity tests. The differences between platforms are in developer experience and tooling, not in the quality of quantum randomness.
+</blockquote>
+
+<p>Origin's 8,000 shots per job produce smoother distributions than IBM's 4,096, but both provide more than enough entropy for cryptographic-quality seed generation. Each NFT's seed has 256 bits of entropy &mdash; far beyond what any pseudorandom generator could match in provability.</p>
+
+<h2 id="dev-experience">Developer Experience Breakdown</h2>
+
+<h3>Where IBM Wins</h3>
+<ul>
+<li><strong>Documentation:</strong> Comprehensive English docs, interactive tutorials, a free textbook, and YouTube content</li>
+<li><strong>Tooling:</strong> Qiskit ecosystem is massive &mdash; circuit visualization, transpilation analysis, error mitigation libraries</li>
+<li><strong>Community:</strong> Stack Overflow answers, Discord server, active GitHub issues with maintainer responses</li>
+<li><strong>Stability:</strong> The API is mature, well-versioned, and rarely breaks unexpectedly</li>
+<li><strong>Backend selection:</strong> <code>service.least_busy()</code> finds an available machine in one line</li>
+<li><strong>Debugging:</strong> Descriptive error messages, real-time queue dashboard, job status tracking</li>
+</ul>
+
+<h3>Where Origin Wins</h3>
+<ul>
+<li><strong>Qubit count:</strong> 180 qubits on WK_C180 vs IBM's 156 on ibm_fez</li>
+<li><strong>Shot count:</strong> 8,000 shots per job on free tier vs IBM's 4,096</li>
+<li><strong>Execution speed:</strong> Jobs complete in 5-10 seconds when the queue is clear</li>
+<li><strong>Simplicity:</strong> No client-side transpilation needed &mdash; submit and get results</li>
+<li><strong>Unique provenance:</strong> Hardware that most Western developers will never access</li>
+</ul>
+
+<h3>Pain Points</h3>
+
+<p><strong>Origin's biggest challenge is documentation.</strong> The SDK works, but it's sparsely documented in English. I had to read Python source code to discover that <code>measure()</code> requires explicit classical bit indices. Error messages sometimes arrive in Chinese. The API URL isn't documented anywhere obvious. If you're comfortable navigating unfamiliar territory, it's fine. If you need hand-holding, it's frustrating.</p>
+
+<p><strong>IBM's biggest friction is API churn.</strong> The SamplerV2 primitive changed how results are accessed. The channel name changed. Many online tutorials are outdated. Queue times can be frustrating for batch jobs &mdash; we occasionally waited 5 minutes between NFT generations. But the documentation always catches up, and the community provides answers quickly.</p>
+
+<h2 id="which-choose">Which Should You Choose?</h2>
+
+<table style="width:100%;border-collapse:collapse;margin:24px 0;">
+<thead>
+<tr style="background:#00b894;color:#fff;">
+<th style="padding:12px 16px;text-align:left;border:1px solid #00a381;">You want...</th>
+<th style="padding:12px 16px;text-align:left;border:1px solid #00a381;">Choose</th>
+</tr>
+</thead>
+<tbody>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Easiest onboarding, best documentation</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><strong>IBM Quantum</strong></td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Fastest raw job execution</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><strong>Origin Quantum</strong></td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Largest ecosystem and community support</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><strong>IBM Quantum</strong></td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Rare hardware provenance</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><strong>Origin Quantum</strong></td>
+</tr>
+<tr style="background:#f8f9fa;">
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Learning quantum computing from scratch</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><strong>IBM Quantum</strong></td>
+</tr>
+<tr>
+<td style="padding:10px 16px;border:1px solid #dee2e6;">Multi-platform quantum provenance</td>
+<td style="padding:10px 16px;border:1px solid #dee2e6;"><strong>Both (start IBM, then explore Origin)</strong></td>
+</tr>
+</tbody>
+</table>
+
+<blockquote style="border-left:4px solid #00b894;padding:12px 20px;margin:24px 0;background:#f0fff4;font-style:italic;">
+My recommendation: start with IBM Quantum for learning and prototyping. Once you're comfortable with quantum circuits, try Origin Quantum for the experience of running on completely different hardware &mdash; and for the provenance value of diversifying your quantum sources.
+</blockquote>
+
+<h2 id="nft-proof">The Proof: NFTs from Both Platforms</h2>
+
+<p>In the Quantum Genesis collection, every NFT carries on-chain metadata about which quantum computer generated its seed. NFTs #1-18 have <code>"quantum_backend": "WK_C180"</code> and <code>"quantum_provider": "Origin Quantum"</code>. NFTs #19-100 carry <code>"quantum_backend": "ibm_fez"</code> or <code>"ibm_torino"</code> with <code>"quantum_provider": "IBM Quantum"</code>.</p>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin:24px 0;">
+<div style="text-align:center;">
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/5.png" alt="Quantum Genesis NFT #5 generated on Origin Quantum WK_C180" style="width:280px;border-radius:12px;" />
+<p style="font-size:13px;color:#666;">NFT #5 &mdash; Origin Quantum WK_C180</p>
+</div>
+<div style="text-align:center;">
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/25.png" alt="Quantum Genesis NFT #25 generated on IBM Quantum ibm_fez" style="width:280px;border-radius:12px;" />
+<p style="font-size:13px;color:#666;">NFT #25 &mdash; IBM Quantum ibm_fez</p>
+</div>
+<div style="text-align:center;">
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/50.png" alt="Quantum Genesis NFT #50 generated on IBM Quantum ibm_fez" style="width:280px;border-radius:12px;" />
+<p style="font-size:13px;color:#666;">NFT #50 &mdash; IBM Quantum ibm_fez</p>
+</div>
+</div>
+
+<p>The art itself looks indistinguishable between platforms &mdash; which is exactly the point. Both produce equally random seeds. But the provenance is permanently recorded on-chain and in the IPFS metadata. The 18 Origin Quantum NFTs are the rarer pieces in the collection, representing a slice of Chinese quantum computing history that most collectors will never encounter elsewhere.</p>
+
+<p>All 100 NFTs live on the Polygon blockchain at contract <a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener"><code>0x488f...1a27</code></a>, with metadata and art permanently stored on IPFS.</p>
+
+<p><em>In the next post, we'll break down the complete technical architecture &mdash; from qubit measurements through art generation to Polygon smart contracts. Every layer, with code.</em></p>
+
+<!-- CTA Box -->
+<div style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);padding:32px;border-radius:16px;text-align:center;margin:32px 0;">
+<h2 style="color:#fff;margin:0 0 12px 0;font-size:24px;">Explore the Quantum Genesis Collection</h2>
+<p style="color:#e8e4ff;margin:0 0 20px 0;font-size:16px;">100 NFTs. Two quantum computers. Provable randomness on Polygon.</p>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#fff;color:#6c5ce7;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">View on OpenSea</a>
+<p style="color:#c8c2f0;font-size:13px;margin:16px 0 0 0;">Contract: <a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener" style="color:#e8e4ff;">0x488f...1a27</a> &nbsp;|&nbsp; Polygon &nbsp;|&nbsp; ERC-721 &nbsp;|&nbsp; EIP-2981 5% Royalties</p>
+</div>

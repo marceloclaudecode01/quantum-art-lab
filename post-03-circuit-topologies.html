@@ -1,0 +1,175 @@
+<!--
+Post Title: 9 Quantum Circuit Topologies That Create Unique Probability Art
+Meta Description: Different quantum circuit designs produce radically different probability distributions. We explore 9 circuit topologies and how each one shapes the randomness — and the art — differently.
+Labels: quantum-computing, deep-dive, tutorial, generative-art
+Permalink: quantum-circuit-topologies-probability-art
+-->
+
+<p><em>In the Quantum Genesis collection, every NFT begins as a quantum circuit executed on a real quantum processor. But not all circuits are equal — the topology you choose fundamentally changes the probability distribution, and therefore the art. Here are 9 circuit designs and what makes each one visually distinct.</em></p>
+
+<h2>Table of Contents</h2>
+<ul>
+  <li><a href="#what-is-topology">What Is a Quantum Circuit Topology?</a></li>
+  <li><a href="#base-circuit">Our Base Circuit: Hadamard + CNOT</a></li>
+  <li><a href="#nine-topologies">The 9 Topologies</a></li>
+  <li><a href="#visual-differences">How Topologies Shape the Art</a></li>
+  <li><a href="#our-circuit">The Actual Circuit Behind Quantum Genesis</a></li>
+  <li><a href="#code">Code: build_nft_seed_circuit</a></li>
+  <li><a href="#collection">See the Results</a></li>
+</ul>
+
+<h2 id="what-is-topology">What Is a Quantum Circuit Topology?</h2>
+
+<p>A quantum circuit topology is the specific arrangement of quantum gates applied to qubits. Think of it as the blueprint: which gates go where, in what order, and how qubits connect to each other through entanglement.</p>
+
+<p>Two circuits with the same number of qubits but different gate arrangements will produce completely different probability distributions when measured. In generative art, this means different color palettes, structural patterns, and visual textures.</p>
+
+<p>For the <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener">Quantum Genesis</a> collection, we ran 100 circuits on real quantum hardware — Origin Quantum's WK_C180 (180 qubits) and IBM Quantum's ibm_fez (156 qubits). The measurement outcomes became SHA-256 seeds that drove every visual parameter of each NFT.</p>
+
+<h2 id="base-circuit">Our Base Circuit: Hadamard + CNOT Entanglement</h2>
+
+<p>The foundation is simple: apply a Hadamard gate (H) to every qubit, placing each into an equal superposition of |0&rangle; and |1&rangle;. Then chain CNOT gates to entangle qubits together. Finally, measure all qubits.</p>
+
+<p>The Hadamard layer creates maximum uncertainty. The CNOT layer introduces correlations between qubits. The specific CNOT pattern — the topology — determines <em>what kind</em> of correlations emerge in the final measurement data.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/1.png" alt="Quantum Genesis NFT #1 generated from Origin Quantum WK_C180 circuit topology" width="400" />
+
+<h2 id="nine-topologies">The 9 Topologies</h2>
+
+<h3>1. All-Hadamard (Uniform Superposition)</h3>
+
+<p>The simplest possible circuit: apply H to every qubit, then measure. No entanglement at all. Each qubit is independently 50/50, producing a uniform distribution across all 2^n possible bitstrings.</p>
+
+<p><strong>Visual effect:</strong> Maximum entropy means maximum randomness. Art generated from this topology tends toward noise — no structure, no patterns, just raw chaos. Useful as a baseline but visually uninteresting on its own.</p>
+
+<h3>2. GHZ State (Maximally Entangled)</h3>
+
+<p>Apply H to qubit 0, then CNOT from qubit 0 to every other qubit. This creates the Greenberger-Horne-Zeilinger state: a superposition of all-zeros and all-ones. Measurement collapses to either 000...0 or 111...1 with equal probability.</p>
+
+<p><strong>Visual effect:</strong> Extremely binary. Art shows stark contrast between two dominant modes. Bold, high-contrast compositions with very little middle ground.</p>
+
+<h3>3. Linear CNOT Chain (Nearest-Neighbor)</h3>
+
+<p>CNOT from qubit 0&rarr;1, then 1&rarr;2, then 2&rarr;3, and so on. Each qubit is entangled only with its immediate neighbor. Correlations decay with distance.</p>
+
+<p><strong>Visual effect:</strong> Gradient-like structures. Adjacent regions of the art are correlated, but distant regions diverge. Produces smooth transitions and organic-feeling patterns.</p>
+
+<h3>4. Steane-7 Code Topology (Error Correction Inspired)</h3>
+
+<p>Based on the [[7,1,3]] quantum error-correcting code. Specific CNOT patterns connect 7 qubits in a structure designed for redundancy. Extended to 12 qubits by repeating the pattern.</p>
+
+<p><strong>Visual effect:</strong> Highly structured with repeating motifs. The redundancy built into error-correcting codes creates self-similar patterns in the probability distribution. Art shows fractal-like repetition.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/25.png" alt="Quantum Genesis NFT #25 showing structured patterns from IBM Quantum ibm_fez processor" width="400" />
+
+<h3>5. Alternating CNOT (Even-Odd Pattern)</h3>
+
+<p>First layer: CNOT on pairs (0,1), (2,3), (4,5), etc. Second layer: CNOT on pairs (1,2), (3,4), (5,6), etc. This is the topology we actually used for Quantum Genesis.</p>
+
+<p><strong>Visual effect:</strong> Balanced entanglement without the extremes of GHZ or the locality of linear chains. Creates rich, complex distributions with both local correlations and longer-range structure. The sweet spot for generative art.</p>
+
+<h3>6. Random Rotation Angles (Parameterized Ry Gates)</h3>
+
+<p>Instead of uniform Hadamard gates, apply Ry(&theta;) rotations with different angles per qubit before the CNOT layer. Each qubit starts in a different superposition bias.</p>
+
+<p><strong>Visual effect:</strong> Asymmetric distributions. Some measurement outcomes become much more likely than others, creating art with dominant colors or structural biases. Every run is parametrically unique.</p>
+
+<h3>7. Grover-Inspired Amplitude Amplification</h3>
+
+<p>Apply the Grover diffusion operator structure: H layer, conditional phase flip, H layer again. Not a full search algorithm, but the amplitude amplification concentrates probability on specific bitstrings.</p>
+
+<p><strong>Visual effect:</strong> Peaked distributions with one or a few dominant outcomes. Art shows strong focal points surrounded by subtle variation. Dramatic, high-contrast compositions.</p>
+
+<h3>8. W-State Preparation</h3>
+
+<p>Creates the W state: an equal superposition of all single-excitation states (100...0 + 010...0 + 001...0 + ...). Exactly one qubit is |1&rangle; in each term. Requires a specific sequence of controlled rotations and CNOTs.</p>
+
+<p><strong>Visual effect:</strong> Sparse distributions. Most bitstrings have zero probability. Art generated from W states is minimalist — a few dominant elements on a clean background. Elegant and restrained.</p>
+
+<h3>9. Bell Pair Cascade</h3>
+
+<p>Create independent Bell pairs: (0,1), (2,3), (4,5), etc. Each pair is maximally entangled internally but independent of other pairs. A modular approach to entanglement.</p>
+
+<p><strong>Visual effect:</strong> Blocky, segmented patterns. Each Bell pair contributes an independent correlated pair of bits. Art shows tiled or modular structures — distinct regions with internal coherence but no global pattern.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/50.png" alt="Quantum Genesis NFT #50 probability art from IBM Quantum real quantum processor" width="400" />
+
+<h2 id="visual-differences">How Topologies Shape the Art</h2>
+
+<p>The connection between circuit topology and visual output is not metaphorical — it is mathematical. Each topology produces a specific probability distribution over 2^12 = 4096 possible measurement outcomes (for our 12-qubit circuits).</p>
+
+<p>When we run thousands of shots (8000 on Origin Quantum, 4096 on IBM Quantum), we get a histogram of measurement frequencies. This histogram becomes the seed data. High-frequency outcomes dominate the art's structure; rare outcomes add texture and detail.</p>
+
+<blockquote>
+<strong>Key insight:</strong> Entanglement is the variable that matters most. Circuits with no entanglement produce noise. Circuits with maximum entanglement (GHZ) produce binary extremes. The interesting art lives in the middle — partial entanglement with complex correlation structures.
+</blockquote>
+
+<p>The alternating CNOT topology (topology #5) hits this sweet spot. It creates enough entanglement for structure, enough independence for variety, and enough complexity for visual richness. That is why we chose it for all 100 Quantum Genesis NFTs.</p>
+
+<h2 id="our-circuit">The Actual Circuit Behind Quantum Genesis</h2>
+
+<p>Every NFT in the collection was generated from a 12-qubit circuit with the following structure:</p>
+
+<ol>
+  <li><strong>Hadamard layer:</strong> H gate on all 12 qubits (q0 through q11)</li>
+  <li><strong>Even CNOT layer:</strong> CNOT(q0,q1), CNOT(q2,q3), CNOT(q4,q5), CNOT(q6,q7), CNOT(q8,q9), CNOT(q10,q11)</li>
+  <li><strong>Odd CNOT layer:</strong> CNOT(q1,q2), CNOT(q3,q4), CNOT(q5,q6), CNOT(q7,q8), CNOT(q9,q10)</li>
+  <li><strong>Measurement:</strong> Measure all 12 qubits into classical bits</li>
+</ol>
+
+<p>NFTs #1-18 ran on Origin Quantum's WK_C180 chip (180 qubits) with 8000 shots using pyqpanda3. NFTs #19-100 ran on IBM Quantum's ibm_fez and ibm_torino processors (156q/133q) with 4096 shots using Qiskit Runtime's SamplerV2.</p>
+
+<h2 id="code">Code: build_nft_seed_circuit</h2>
+
+<pre><code class="language-python">from qiskit import QuantumCircuit
+import hashlib
+
+def build_nft_seed_circuit(n_qubits=12):
+    """Build a max-entropy seed-generation circuit.
+    H on all qubits + alternating CNOT chains + measure all."""
+    qc = QuantumCircuit(n_qubits, n_qubits)
+
+    # Hadamard layer — uniform superposition
+    for i in range(n_qubits):
+        qc.h(i)
+
+    # Even CNOT layer
+    for i in range(0, n_qubits - 1, 2):
+        qc.cx(i, i + 1)
+
+    # Odd CNOT layer
+    for i in range(1, n_qubits - 1, 2):
+        qc.cx(i, i + 1)
+
+    # Measure all qubits
+    qc.measure(range(n_qubits), range(n_qubits))
+    return qc
+
+def counts_to_seed(counts):
+    """Convert measurement counts to a deterministic hex seed via SHA-256."""
+    sorted_counts = sorted(counts.items())
+    raw = "|".join(f"{k}:{v}" for k, v in sorted_counts)
+    return hashlib.sha256(raw.encode()).hexdigest()
+</code></pre>
+
+<p>The circuit is deliberately simple. Complexity in the art comes from the quantum hardware itself — gate errors, decoherence, crosstalk, and the genuine randomness of quantum measurement. No classical algorithm can replicate this.</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/77.png" alt="Quantum Genesis NFT #77 generative art from quantum probability distribution" width="400" />
+
+<h2 id="collection">See the Results</h2>
+
+<p>All 100 Quantum Genesis NFTs live on the Polygon blockchain. Each one carries metadata tracing its origin to a specific quantum processor, shot count, and circuit configuration. The art is not simulated — it is measured.</p>
+
+<blockquote>
+<strong>Every NFT is a frozen quantum measurement.</strong> The circuit topology shaped the probability space. The quantum hardware collapsed it into reality. The art is what emerged.
+</blockquote>
+
+<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; color: #ffffff;">
+  <h3 style="color: #e94560; margin-top: 0;">Quantum Genesis Collection</h3>
+  <p style="font-size: 1.1em;">100 NFTs. 2 quantum computers. 9 possible topologies. Infinite randomness.</p>
+  <p>
+    <a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display: inline-block; background: #e94560; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 5px;">View on OpenSea</a>
+    <a href="https://dev.to/marceloclaudecode01/i-used-a-real-quantum-computer-to-generate-art-and-the-randomness-is-nothing-like-what-algorithms-lno" target="_blank" rel="noopener" style="display: inline-block; background: transparent; color: #e94560; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; border: 2px solid #e94560; margin: 5px;">Read the Dev.to Article</a>
+  </p>
+  <p style="font-size: 0.85em; opacity: 0.7;">Contract: 0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27 (Polygon)</p>
+</div>

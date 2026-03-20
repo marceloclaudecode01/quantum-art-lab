@@ -1,0 +1,113 @@
+<!--
+Post Title: I Used a Real Quantum Computer to Generate Art — Here's What Happened
+Meta Description: What happens when you feed quantum randomness into a generative art pipeline? I used IBM Quantum and Origin Quantum's real processors to create 100 unique NFTs. Here's the full story.
+Labels: quantum-computing, generative-art, nft, python
+Permalink: quantum-computer-generative-art-nfts
+-->
+
+<!-- Table of Contents -->
+<div style="background:#f4f4f8;border-left:4px solid #6c5ce7;padding:16px 20px;margin-bottom:28px;border-radius:4px;">
+<strong>Table of Contents</strong>
+<ol style="margin:8px 0 0 0;padding-left:20px;">
+<li><a href="#the-idea">The Idea: What If Art Came From Quantum Physics?</a></li>
+<li><a href="#why-quantum">Why Quantum Randomness Matters for Art</a></li>
+<li><a href="#pipeline">The Pipeline: From Qubit to Pixel</a></li>
+<li><a href="#examples">Seeing the Results</a></li>
+<li><a href="#origin">The Origin Quantum Chapter</a></li>
+<li><a href="#ibm">The IBM Quantum Chapter</a></li>
+<li><a href="#results">100 Pieces, Zero Classical Fallback</a></li>
+<li><a href="#view">View the Collection</a></li>
+</ol>
+</div>
+
+<h2 id="the-idea">The Idea: What If Art Came From Quantum Physics?</h2>
+
+<p>Every generative art project you've seen uses pseudorandom numbers. Algorithms that look random but aren't. Deterministic sequences that a sufficiently motivated person could predict and reproduce.</p>
+
+<p>I wanted something different. I wanted art generated from <strong>real quantum measurements</strong> — outcomes that are fundamentally unpredictable, not just practically unpredictable. Outcomes that didn't exist until the moment a qubit was measured.</p>
+
+<p>So I connected to two real quantum computers — Origin Quantum's WK_C180 (180 qubits) and IBM Quantum's ibm_fez (156 qubits) — and used their measurement outputs to generate 100 unique pieces of art. No simulators. No fallbacks. Every single pixel trace comes from actual quantum hardware.</p>
+
+<blockquote>
+<p><strong>Key takeaway:</strong> These aren't "quantum-inspired." Every NFT in the Quantum Genesis collection was seeded by a real quantum measurement that didn't exist until the circuit ran.</p>
+</blockquote>
+
+<h2 id="why-quantum">Why Quantum Randomness Matters for Art</h2>
+
+<p>When you call <code>Math.random()</code> in JavaScript, you get a number from a deterministic algorithm. Given the same internal state, you get the same output. Always. It's pseudorandomness — good enough for most things, but fundamentally predictable.</p>
+
+<p>Quantum randomness is different at a physical level. When you put a qubit in superposition using a Hadamard gate and then measure it, the outcome (0 or 1) is governed by the Born rule of quantum mechanics. No hidden variable determines it. No algorithm produces it. It simply <em>happens</em>.</p>
+
+<p>For generative art, this means each piece is rooted in an event that is literally non-reproducible. You can't rewind the universe and get the same measurement again. The art inherits that uniqueness.</p>
+
+<h2 id="pipeline">The Pipeline: From Qubit to Pixel</h2>
+
+<p>Here's how the full pipeline works:</p>
+
+<ol>
+<li><strong>Quantum Circuit:</strong> A 12-qubit circuit applies Hadamard gates (superposition) and CNOT gates (entanglement) to create a maximum-entropy state.</li>
+<li><strong>Measurement:</strong> The circuit runs on real hardware (8,000 shots on Origin Quantum, 4,096 on IBM Quantum). The measurement distribution becomes raw data.</li>
+<li><strong>Quantum Seed:</strong> The distribution is hashed through SHA-256 to produce a 256-bit hex seed — e.g., <code>2cf1b4034f223f5c3e6a83019656e65597828ae375db07b2ef358ac523dde706</code></li>
+<li><strong>Deterministic RNG:</strong> The seed initializes a custom QuantumRNG class (xorshift128+ style from SHA-512) that produces a reproducible stream of random values.</li>
+<li><strong>SVG Generation:</strong> The RNG stream drives every visual decision — circles, rectangles, ellipses, bezier curves, polygons, gradients, and color harmonies (complementary, analogous, triadic, split-complementary, tetradic).</li>
+<li><strong>PNG Conversion:</strong> SVGs are rasterized to PNG.</li>
+<li><strong>IPFS Upload:</strong> Art and metadata are pinned to IPFS via Pinata.</li>
+<li><strong>Polygon Mint:</strong> Each NFT is minted on Polygon mainnet as an ERC-721 token with 5% EIP-2981 royalties.</li>
+</ol>
+
+<p>The clever part: once you have the quantum seed, the art is fully deterministic. You can regenerate the exact same image from the same seed. But the seed itself? That came from quantum physics, and it can never be reproduced.</p>
+
+<h2 id="examples">Seeing the Results</h2>
+
+<p>Here are three pieces from the collection. Each one traces back to a unique quantum measurement:</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/1.png" alt="Quantum Genesis NFT #1 — quantum computer generative art from Origin Quantum WK_C180" style="max-width:100%;border-radius:8px;margin:16px 0;" />
+<p style="text-align:center;color:#666;font-size:0.9em;">Quantum Genesis #1 — Origin Quantum WK_C180</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/25.png" alt="Quantum Genesis NFT #25 — quantum generative art from IBM Quantum ibm_fez processor" style="max-width:100%;border-radius:8px;margin:16px 0;" />
+<p style="text-align:center;color:#666;font-size:0.9em;">Quantum Genesis #25 — IBM Quantum ibm_fez</p>
+
+<img src="https://maroon-bright-perch-405.mypinata.cloud/ipfs/bafybeifges7tei5x7drj37f34yhzqofwlz2icbo7z67isg6g446k65yw3a/75.png" alt="Quantum Genesis NFT #75 — quantum NFT art from IBM Quantum ibm_torino" style="max-width:100%;border-radius:8px;margin:16px 0;" />
+<p style="text-align:center;color:#666;font-size:0.9em;">Quantum Genesis #75 — IBM Quantum ibm_torino</p>
+
+<p>Each NFT carries on-chain metadata attributes including Entropy Level, Entropy Score (0-100), Qubit Configuration (GHZ-3, Steane-7, and more), Quantum Phase (Interfering, Superposition, etc.), Color Harmony, and Complexity Score.</p>
+
+<h2 id="origin">The Origin Quantum Chapter (NFTs #1-18)</h2>
+
+<p>The project started with <a href="https://www.originqc.com.cn/" target="_blank" rel="noopener">Origin Quantum</a>, a Chinese quantum computing company. Their WK_C180 chip — potentially 180 qubits — was accessed through the pyqpanda3 SDK via their QCloudService API.</p>
+
+<p>Each circuit ran with 8,000 shots. The first 18 NFTs were generated this way. Getting access to the chip, debugging the SDK, and figuring out the correct measurement syntax (<code>measure([0,1], [0,1])</code> with explicit classical bits) was a journey in itself.</p>
+
+<p>These 18 pieces carry a unique provenance: they're among the very few NFTs in existence generated from a Chinese quantum processor.</p>
+
+<h2 id="ibm">The IBM Quantum Chapter (NFTs #19-100)</h2>
+
+<p>For the remaining 82 NFTs, I switched to <a href="https://quantum.ibm.com/" target="_blank" rel="noopener">IBM Quantum</a>. Using Qiskit Runtime's SamplerV2, circuits ran on ibm_fez (156 qubits) and ibm_torino (133 qubits) with 4,096 shots each.</p>
+
+<p>IBM's infrastructure was more stable for batch generation. Each NFT took roughly 19 seconds on ibm_fez. The transpilation used <code>generate_preset_pass_manager</code> with optimization level 1 to adapt the 12-qubit circuit to the physical topology of each processor.</p>
+
+<p>The entire batch of 82 NFTs was generated, converted to PNG, uploaded to IPFS, and minted on Polygon without a single classical fallback. Every seed is verifiably quantum.</p>
+
+<h2 id="results">100 Pieces, Zero Classical Fallback</h2>
+
+<p>The final collection:</p>
+
+<ul>
+<li><strong>100 unique NFTs</strong> on Polygon mainnet (ERC-721, contract <a href="https://polygonscan.com/address/0x488fCfaEA5fDf1cF6BAED5e8A34D7858033E1a27" target="_blank" rel="noopener"><code>0x488f...1a27</code></a>)</li>
+<li><strong>Two quantum processors</strong> — Origin Quantum WK_C180 + IBM Quantum ibm_fez/ibm_torino</li>
+<li><strong>All art on IPFS</strong> — immutable, decentralized storage via Pinata</li>
+<li><strong>5% royalties</strong> via EIP-2981 standard</li>
+<li><strong>Zero classical fallback</strong> — every single seed comes from real quantum hardware</li>
+</ul>
+
+<blockquote>
+<p>I wrote a detailed technical article about the full process on Dev.to: <a href="https://dev.to/marceloclaudecode01/i-used-a-real-quantum-computer-to-generate-art-and-the-randomness-is-nothing-like-what-algorithms-lno" target="_blank" rel="noopener">I Used a Real Quantum Computer to Generate Art, and the Randomness Is Nothing Like What Algorithms Can Do</a></p>
+</blockquote>
+
+<h2 id="view">View the Collection</h2>
+
+<div style="background:linear-gradient(135deg,#6c5ce7,#a855f7);padding:24px;border-radius:12px;text-align:center;margin:24px 0;">
+<p style="color:#fff;font-size:1.2em;margin:0 0 12px 0;font-weight:bold;">Quantum Genesis — 100 NFTs from Real Quantum Computers</p>
+<p style="color:#e0d4ff;margin:0 0 16px 0;">Each piece is seeded by an irreproducible quantum measurement.</p>
+<a href="https://opensea.io/collection/quantum-genesis" target="_blank" rel="noopener" style="display:inline-block;background:#fff;color:#6c5ce7;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:1.1em;">View on OpenSea</a>
+</div>
