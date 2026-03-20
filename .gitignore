@@ -1,2 +1,5 @@
 *.env
 .env*
+.blogger-token.json
+publish-to-blogger.py
+__pycache__/
